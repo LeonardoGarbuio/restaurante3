@@ -7,7 +7,6 @@
     <meta name="description" content="Authentic Portuguese bakery offering traditional bolos and salgados with delivery and dine-in options. Family recipes since 2018." />
     <link rel="stylesheet" href="../css/main.css" />
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥖</text></svg>" />
-<script type="module" src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fsaborespo9086back.builtwithrocket.new&_be=https%3A%2F%2Fapplication.rocket.new&_v=0.1.7"></script>
 </head>
 <body class="font-open-sans bg-background text-text-primary">
     <!-- Navigation Header -->
@@ -1125,9 +1124,19 @@
 
         // Smooth scroll function
         function scrollToSection(sectionId) {
-            document.getElementById(sectionId).scrollIntoView({
-                behavior: 'smooth'
-            });
+            const element = document.getElementById(sectionId);
+            if (element) {
+                // Considerar o header fixo
+                const headerHeight = 80; // altura aproximada do header
+                const elementPosition = element.offsetTop - headerHeight;
+                
+                window.scrollTo({
+                    top: elementPosition,
+                    behavior: 'smooth'
+                });
+            } else {
+                console.warn('Seção não encontrada:', sectionId);
+            }
         }
 
         // Navbar background on scroll
@@ -1143,7 +1152,7 @@
         });
 
         // Add to cart functionality (placeholder)
-        document.querySelectorAll('button:contains("Adicionar")').forEach(button => {
+        document.querySelectorAll('button').forEach(button => {
             if (button.textContent.includes('Adicionar')) {
                 button.addEventListener('click', function() {
                     // Placeholder for add to cart functionality
@@ -1160,6 +1169,5 @@
             }
         });
     </script>
-<script id="dhws-dataInjector" src="../public/dhws-data-injector.js"></script>
 </body>
 </html>
