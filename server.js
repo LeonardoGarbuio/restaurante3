@@ -30,9 +30,8 @@ app.use(express.static('public'));
 app.use('/css', express.static('css'));
 app.use('/pages', express.static('pages'));
 
-// Conectar ao MongoDB
-const connectDB = require('./config/database');
-connectDB();
+// Conectar ao banco SQLite
+const db = require('./config/database');
 
 // Rotas
 app.use('/api/auth', require('./routes/auth'));

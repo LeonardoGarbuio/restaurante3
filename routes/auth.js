@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User');
+const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { validateRegister, validateLogin, validatePasswordChange } = require('../middleware/validation');
 
@@ -15,7 +15,7 @@ router.post('/register', validateRegister, async (req, res) => {
     const { name, email, phone, password, address } = req.body;
 
     // Verificar se o usuário já existe
-    const existingUser = await User.findOne({ email });
+    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -24,7 +24,7 @@ router.post('/register', validateRegister, async (req, res) => {
     }
 
     // Verificar se o telefone já está em uso
-    const existingPhone = await User.findOne({ phone });
+    const existingPhone = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone);
     if (existingPhone) {
       return res.status(400).json({
         success: false,
@@ -32,33 +32,45 @@ router.post('/register', validateRegister, async (req, res) => {
       });
     }
 
-    // Criar novo usuário
-    const user = new User({
-      name,
-      email,
-      phone,
-      password,
-      address
-    });
+    // Hash da password
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    await user.save();
+    // Criar novo usuário
+    const stmt = db.prepare(`
+      INSERT INTO users (name, email, phone, password, street, city, postal_code, lat, lng)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      name, 
+      email, 
+      phone, 
+      hashedPassword, 
+      address.street, 
+      address.city, 
+      address.postalCode,
+      address.coordinates?.lat || null,
+      address.coordinates?.lng || null
+    );
+
+    const userId = result.lastInsertRowid;
 
     // Gerar token JWT
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
+      { userId },
+      process.env.JWT_SECRET || 'default_secret',
       { expiresIn: '7d' }
     );
 
-    // Remover password da resposta
-    const userResponse = user.toObject();
-    delete userResponse.password;
+    // Buscar usuário criado (sem password)
+    const user = db.prepare('SELECT id, name, email, phone, street, city, postal_code, role, loyalty_points, loyalty_tier, created_at FROM users WHERE id = ?').get(userId);
 
     res.status(201).json({
       success: true,
       message: 'Utilizador registado com sucesso',
       data: {
-        user: userResponse,
+        user,
         token
       }
     });
@@ -79,7 +91,7 @@ router.post('/login', validateLogin, async (req, res) => {
     const { email, password } = req.body;
 
     // Buscar usuário com password
-    const user = await User.findOne({ email }).select('+password');
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     
     if (!user) {
       return res.status(401).json({
@@ -88,7 +100,7 @@ router.post('/login', validateLogin, async (req, res) => {
       });
     }
 
-    if (!user.isActive) {
+    if (!user.is_active) {
       return res.status(401).json({
         success: false,
         message: 'Conta desativada. Contacte o suporte.'
@@ -96,7 +108,7 @@ router.post('/login', validateLogin, async (req, res) => {
     }
 
     // Verificar password
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -105,19 +117,17 @@ router.post('/login', validateLogin, async (req, res) => {
     }
 
     // Atualizar último login
-    user.lastLogin = new Date();
-    await user.save();
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
 
     // Gerar token JWT
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
+      { userId: user.id },
+      process.env.JWT_SECRET || 'default_secret',
       { expiresIn: '7d' }
     );
 
     // Remover password da resposta
-    const userResponse = user.toObject();
-    delete userResponse.password;
+    const { password: _, ...userResponse } = user;
 
     res.json({
       success: true,
@@ -143,8 +153,8 @@ router.post('/refresh', authenticateToken, async (req, res) => {
   try {
     // Gerar novo token
     const token = jwt.sign(
-      { userId: req.user._id },
-      process.env.JWT_SECRET,
+      { userId: req.user.id },
+      process.env.JWT_SECRET || 'default_secret',
       { expiresIn: '7d' }
     );
 
@@ -184,7 +194,7 @@ router.post('/change-password', authenticateToken, validatePasswordChange, async
     const { currentPassword, newPassword } = req.body;
 
     // Buscar usuário com password atual
-    const user = await User.findById(req.user._id).select('+password');
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     
     if (!user) {
       return res.status(404).json({
@@ -194,7 +204,7 @@ router.post('/change-password', authenticateToken, validatePasswordChange, async
     }
 
     // Verificar password atual
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
@@ -202,9 +212,12 @@ router.post('/change-password', authenticateToken, validatePasswordChange, async
       });
     }
 
+    // Hash da nova password
+    const salt = await bcrypt.genSalt(12);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
     // Atualizar password
-    user.password = newPassword;
-    await user.save();
+    db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hashedNewPassword, req.user.id);
 
     res.json({
       success: true,
@@ -234,7 +247,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     // Verificar se o usuário existe
-    const user = await User.findOne({ email });
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (!user) {
       // Por segurança, não revelar se o email existe ou não
       return res.json({
@@ -245,8 +258,8 @@ router.post('/forgot-password', async (req, res) => {
 
     // Gerar token de reset (válido por 1 hora)
     const resetToken = jwt.sign(
-      { userId: user._id, type: 'password_reset' },
-      process.env.JWT_SECRET,
+      { userId: user.id, type: 'password_reset' },
+      process.env.JWT_SECRET || 'default_secret',
       { expiresIn: '1h' }
     );
 
@@ -280,7 +293,7 @@ router.post('/reset-password', async (req, res) => {
     }
 
     // Verificar token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret');
     
     if (decoded.type !== 'password_reset') {
       return res.status(400).json({
@@ -290,7 +303,7 @@ router.post('/reset-password', async (req, res) => {
     }
 
     // Buscar usuário
-    const user = await User.findById(decoded.userId);
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(decoded.userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -298,9 +311,12 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
+    // Hash da nova password
+    const salt = await bcrypt.genSalt(12);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
     // Atualizar password
-    user.password = newPassword;
-    await user.save();
+    db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hashedNewPassword, decoded.userId);
 
     res.json({
       success: true,
@@ -335,9 +351,13 @@ router.post('/reset-password', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     // Buscar usuário com dados atualizados
-    const user = await User.findById(req.user._id)
-      .select('-password')
-      .populate('preferences.favoriteProducts', 'name images price');
+    const user = db.prepare(`
+      SELECT id, name, email, phone, street, city, postal_code, lat, lng, 
+             role, loyalty_points, loyalty_tier, is_active, email_verified, 
+             phone_verified, dietary_restrictions, delivery_instructions, 
+             marketing_emails, sms_notifications, last_login, created_at, updated_at
+      FROM users WHERE id = ?
+    `).get(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -366,7 +386,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 // @access  Private
 router.post('/verify-email', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = db.prepare('SELECT id, email_verified FROM users WHERE id = ?').get(req.user.id);
     
     if (!user) {
       return res.status(404).json({
@@ -375,7 +395,7 @@ router.post('/verify-email', authenticateToken, async (req, res) => {
       });
     }
 
-    if (user.emailVerified) {
+    if (user.email_verified) {
       return res.status(400).json({
         success: false,
         message: 'Email já está verificado'
@@ -383,8 +403,7 @@ router.post('/verify-email', authenticateToken, async (req, res) => {
     }
 
     // Simular verificação de email
-    user.emailVerified = true;
-    await user.save();
+    db.prepare('UPDATE users SET email_verified = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.user.id);
 
     res.json({
       success: true,
@@ -413,7 +432,7 @@ router.post('/verify-phone', authenticateToken, async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = db.prepare('SELECT id, phone_verified FROM users WHERE id = ?').get(req.user.id);
     
     if (!user) {
       return res.status(404).json({
@@ -422,7 +441,7 @@ router.post('/verify-phone', authenticateToken, async (req, res) => {
       });
     }
 
-    if (user.phoneVerified) {
+    if (user.phone_verified) {
       return res.status(400).json({
         success: false,
         message: 'Telefone já está verificado'
@@ -431,8 +450,7 @@ router.post('/verify-phone', authenticateToken, async (req, res) => {
 
     // Simular verificação de código (qualquer código funciona)
     if (code.length === 6) {
-      user.phoneVerified = true;
-      await user.save();
+      db.prepare('UPDATE users SET phone_verified = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.user.id);
 
       res.json({
         success: true,
