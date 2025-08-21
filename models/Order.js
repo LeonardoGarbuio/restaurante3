@@ -272,8 +272,6 @@ orderSchema.methods.applyLoyaltyDiscount = function(discountPercentage) {
 };
 
 // Índices para melhor performance
-orderSchema.index({ orderNumber: 1 });
-orderSchema.index({ user: 1 });
 orderSchema.index({ 'status.current': 1 });
 orderSchema.index({ 'delivery.type': 1 });
 orderSchema.index({ 'payment.status': 1 });

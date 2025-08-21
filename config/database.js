@@ -6,10 +6,7 @@ const connectDB = async () => {
     // Usar MongoDB local
     const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/sabores-portugueses';
     
-    const conn = await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(MONGODB_URI);
 
     console.log(`✅ MongoDB conectado: ${conn.connection.host}`);
     console.log(`🗄️  Banco: ${conn.connection.name}`);

@@ -152,7 +152,6 @@ userSchema.methods.getLoyaltyDiscount = function() {
 };
 
 // Índices para melhor performance
-userSchema.index({ email: 1 });
 userSchema.index({ phone: 1 });
 userSchema.index({ 'address.city': 1 });
 userSchema.index({ loyaltyPoints: -1 });
