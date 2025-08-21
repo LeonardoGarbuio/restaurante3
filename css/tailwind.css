@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Primary Colors */
+  --color-primary: #C41E3A; /* Portuguese flag red */
+  --color-primary-50: #FDF2F4; /* Very light red */
+  --color-primary-100: #FCE7EA; /* Light red */
+  --color-primary-200: #F8CDD3; /* Lighter red */
+  --color-primary-300: #F2A1AC; /* Medium light red */
+  --color-primary-400: #E96B7A; /* Medium red */
+  --color-primary-500: #C41E3A; /* Base primary red */
+  --color-primary-600: #A8182F; /* Darker red */
+  --color-primary-700: #8B1426; /* Dark red */
+  --color-primary-800: #6E101D; /* Very dark red */
+  --color-primary-900: #520C16; /* Darkest red */
+
+  /* Secondary Colors */
+  --color-secondary: #228B22; /* Portuguese flag green */
+  --color-secondary-50: #F0F9F0; /* Very light green */
+  --color-secondary-100: #E1F3E1; /* Light green */
+  --color-secondary-200: #C3E7C3; /* Lighter green */
+  --color-secondary-300: #94D494; /* Medium light green */
+  --color-secondary-400: #5CB85C; /* Medium green */
+  --color-secondary-500: #228B22; /* Base secondary green */
+  --color-secondary-600: #1E7A1E; /* Darker green */
+  --color-secondary-700: #1A681A; /* Dark green */
+  --color-secondary-800: #155615; /* Very dark green */
+  --color-secondary-900: #104410; /* Darkest green */
+
+  /* Accent Colors */
+  --color-accent: #FF6B35; /* High-contrast orange */
+  --color-accent-50: #FFF4F0; /* Very light orange */
+  --color-accent-100: #FFE9E1; /* Light orange */
+  --color-accent-200: #FFD3C3; /* Lighter orange */
+  --color-accent-300: #FFB394; /* Medium light orange */
+  --color-accent-400: #FF8F5C; /* Medium orange */
+  --color-accent-500: #FF6B35; /* Base accent orange */
+  --color-accent-600: #E55A2B; /* Darker orange */
+  --color-accent-700: #CC4A21; /* Dark orange */
+  --color-accent-800: #B33A17; /* Very dark orange */
+  --color-accent-900: #992A0D; /* Darkest orange */
+
+  /* Background Colors */
+  --color-background: #FFFEF7; /* Warm cream */
+  --color-surface: #F5F5DC; /* Subtle beige */
+
+  /* Text Colors */
+  --color-text-primary: #2C1810; /* Dark brown */
+  --color-text-secondary: #5D4E37; /* Medium brown */
+
+  /* Status Colors */
+  --color-success: #32CD32; /* Fresh green */
+  --color-success-50: #F0FFF0; /* Very light success green */
+  --color-success-100: #E1FFE1; /* Light success green */
+  --color-success-200: #C3FFC3; /* Lighter success green */
+  --color-success-300: #94FF94; /* Medium light success green */
+  --color-success-400: #5CFF5C; /* Medium success green */
+  --color-success-500: #32CD32; /* Base success green */
+  --color-success-600: #2BB82B; /* Darker success green */
+  --color-success-700: #24A324; /* Dark success green */
+  --color-success-800: #1D8E1D; /* Very dark success green */
+  --color-success-900: #167916; /* Darkest success green */
+
+  --color-warning: #FFD700; /* Golden yellow */
+  --color-warning-50: #FFFEF0; /* Very light warning yellow */
+  --color-warning-100: #FFFDE1; /* Light warning yellow */
+  --color-warning-200: #FFFBC3; /* Lighter warning yellow */
+  --color-warning-300: #FFF794; /* Medium light warning yellow */
+  --color-warning-400: #FFF15C; /* Medium warning yellow */
+  --color-warning-500: #FFD700; /* Base warning yellow */
+  --color-warning-600: #E5C200; /* Darker warning yellow */
+  --color-warning-700: #CCAD00; /* Dark warning yellow */
+  --color-warning-800: #B39800; /* Very dark warning yellow */
+  --color-warning-900: #998300; /* Darkest warning yellow */
+
+  --color-error: #DC143C; /* Clear red */
+  --color-error-50: #FDF2F4; /* Very light error red */
+  --color-error-100: #FCE7EA; /* Light error red */
+  --color-error-200: #F8CDD3; /* Lighter error red */
+  --color-error-300: #F2A1AC; /* Medium light error red */
+  --color-error-400: #E96B7A; /* Medium error red */
+  --color-error-500: #DC143C; /* Base error red */
+  --color-error-600: #C41235; /* Darker error red */
+  --color-error-700: #AC102E; /* Dark error red */
+  --color-error-800: #940E27; /* Very dark error red */
+  --color-error-900: #7C0C20; /* Darkest error red */
+}
+
+@layer base {
+  body {
+    font-family: 'Open Sans', sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-600 text-white font-montserrat font-semibold px-6 py-3 rounded-lg transition-all duration-250 ease-in-out;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.15);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(196, 30, 58, 0.2);
+  }
+
+  .card-food {
+    @apply bg-white rounded-lg overflow-hidden transition-all duration-200 ease-in-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .card-food:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .border-portuguese {
+    border: 1px solid var(--color-primary);
+  }
+
+  .text-accent-script {
+    font-family: 'Dancing Script', cursive;
+  }
+
+  .text-cta {
+    font-family: 'Montserrat', sans-serif;
+  }
+}

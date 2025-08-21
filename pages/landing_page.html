@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="pt" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sabores Portugueses - Authentic Portuguese Bakery & Restaurant</title>
+    <meta name="description" content="Authentic Portuguese bakery offering traditional bolos and salgados with delivery and dine-in options. Family recipes since 2018." />
+    <link rel="stylesheet" href="../css/main.css" />
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥖</text></svg>" />
+<script type="module" src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fsaborespo9086back.builtwithrocket.new&_be=https%3A%2F%2Fapplication.rocket.new&_v=0.1.7"></script>
+</head>
+<body class="font-open-sans bg-background text-text-primary">
+    <!-- Navigation Header -->
+    <nav class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm z-50 border-b border-primary/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <svg class="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <span class="font-playfair font-bold text-xl text-primary">Sabores Portugueses</span>
+                </div>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#menu" class="text-text-secondary hover:text-primary transition-colors">Menu</a>
+                    <a href="#about" class="text-text-secondary hover:text-primary transition-colors">Nossa História</a>
+                    <a href="#delivery" class="text-text-secondary hover:text-primary transition-colors">Entrega</a>
+                    <a href="#contact" class="text-text-secondary hover:text-primary transition-colors">Contacto</a>
+                    <a href="tel:+351234567890" class="bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary-600 transition-colors font-montserrat font-semibold">
+                        Ligar Agora
+                    </a>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <button class="md:hidden p-2" id="mobile-menu-btn">
+                    <svg class="w-6 h-6 text-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div class="md:hidden hidden bg-white border-t border-primary/10" id="mobile-menu">
+            <div class="px-4 py-2 space-y-2">
+                <a href="#menu" class="block py-2 text-text-secondary hover:text-primary">Menu</a>
+                <a href="#about" class="block py-2 text-text-secondary hover:text-primary">Nossa História</a>
+                <a href="#delivery" class="block py-2 text-text-secondary hover:text-primary">Entrega</a>
+                <a href="#contact" class="block py-2 text-text-secondary hover:text-primary">Contacto</a>
+                <a href="tel:+351234567890" class="block w-full text-center bg-secondary text-white py-2 rounded-lg mt-2">Ligar Agora</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <!-- Background Image -->
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop" alt="Fresh Portuguese pastries and bread" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3'; this.onerror=null;" />
+            <div class="absolute inset-0 bg-black/40"></div>
+        </div>
+        
+        <!-- Hero Content -->
+        <div class="relative z-10 text-center text-white max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-6">
+                <span class="inline-block bg-accent text-white px-4 py-2 rounded-full text-sm font-montserrat font-semibold mb-4">
+                    🔥 Frescos Diariamente Desde 2018
+                </span>
+            </div>
+            
+            <h1 class="font-playfair text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                Sabores Portugueses Autênticos,<br />
+                <span class="text-accent">Entregues Frescos Diariamente</span>
+            </h1>
+            
+            <p class="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto">
+                Receitas familiares transmitidas através de gerações, agora disponíveis para entrega ou jantar no local.
+            </p>
+            
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+                <button class="btn-primary text-lg px-8 py-4 w-full sm:w-auto" onclick="scrollToSection('menu')">
+                    🛒 Encomendar Agora para Entrega
+                </button>
+                <button class="bg-white/20 backdrop-blur-sm text-white border-2 border-white hover:bg-white hover:text-text-primary font-montserrat font-semibold px-8 py-4 rounded-lg transition-all duration-250 w-full sm:w-auto" onclick="scrollToSection('menu')">
+                    📋 Ver Menu Completo
+                </button>
+                <a href="tel:+351234567890" class="bg-secondary hover:bg-secondary-600 text-white font-montserrat font-semibold px-8 py-4 rounded-lg transition-all duration-250 w-full sm:w-auto text-center">
+                    📞 Ligar para Encomendar
+                </a>
+            </div>
+            
+            <!-- Trust Indicators -->
+            <div class="flex flex-wrap justify-center items-center gap-6 text-sm">
+                <div class="flex items-center space-x-2">
+                    <span class="text-success text-lg">●</span>
+                    <span>Entrega Disponível Agora</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-warning text-lg">⭐</span>
+                    <span>4.9/5 Avaliação dos Clientes</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-accent text-lg">🏆</span>
+                    <span>Melhor Padaria Portuguesa 2024</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Heritage Story Section -->
+    <section id="about" class="py-20 bg-surface">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Story Content -->
+                <div class="space-y-6">
+                    <div class="inline-block">
+                        <span class="text-accent font-dancing text-2xl">A Nossa História</span>
+                    </div>
+                    <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary">
+                        Tradição Familiar Desde 1952
+                    </h2>
+                    <p class="text-lg text-text-secondary leading-relaxed">
+                        Há mais de 70 anos, a nossa família tem preservado as receitas tradicionais portuguesas, 
+                        passando de geração em geração os segredos dos melhores bolos e salgados de Portugal.
+                    </p>
+                    <p class="text-lg text-text-secondary leading-relaxed">
+                        Em 2018, trouxemos essas tradições para a nossa comunidade local, oferecendo a mesma 
+                        qualidade e autenticidade que caracteriza a verdadeira pastelaria portuguesa.
+                    </p>
+                    
+                    <!-- Heritage Features -->
+                    <div class="grid sm:grid-cols-2 gap-4 mt-8">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <span class="text-primary text-sm">👨‍👩‍👧‍👦</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Receitas Familiares</h4>
+                                <p class="text-sm text-text-secondary">Transmitidas há 3 gerações</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center">
+                                <span class="text-secondary text-sm">🇵🇹</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">100% Português</h4>
+                                <p class="text-sm text-text-secondary">Ingredientes e técnicas autênticas</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center">
+                                <span class="text-accent text-sm">🏅</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Qualidade Premium</h4>
+                                <p class="text-sm text-text-secondary">Ingredientes selecionados diariamente</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 w-8 h-8 bg-warning/10 rounded-full flex items-center justify-center">
+                                <span class="text-warning text-sm">⏰</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Frescos Diariamente</h4>
+                                <p class="text-sm text-text-secondary">Produzidos todas as manhãs</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Family Photos -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-4">
+                        <img src="https://images.pixabay.com/photos/2016/11/29/12/54/bread-1869343_1280.jpg" alt="Traditional Portuguese baking" class="w-full h-48 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <img src="https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Portuguese family bakery" class="w-full h-32 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.unsplash.com/photo-1517433670267-08bbd4be890f?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                    </div>
+                    <div class="space-y-4 pt-8">
+                        <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Traditional Portuguese pastries" class="w-full h-32 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.pixabay.com/photos/2017/01/11/11/33/cake-1971552_1280.jpg'; this.onerror=null;" />
+                        <img src="https://images.pixabay.com/photos/2017/07/15/11/21/pasteis-de-nata-2505997_1280.jpg" alt="Pastéis de nata being made" class="w-full h-48 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.unsplash.com/photo-1571115764595-644a1f56a55c?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Signature Items Showcase -->
+    <section id="menu" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="text-accent font-dancing text-2xl">Os Nossos Especialidades</span>
+                <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary mt-2 mb-4">
+                    Bolos e Salgados Tradicionais
+                </h2>
+                <p class="text-lg text-text-secondary max-w-2xl mx-auto">
+                    Descubra os sabores autênticos de Portugal com os nossos produtos mais populares, 
+                    feitos frescos todas as manhãs com ingredientes premium.
+                </p>
+            </div>
+            
+            <!-- Menu Filter -->
+            <div class="flex flex-wrap justify-center gap-4 mb-12">
+                <button class="menu-filter active bg-primary text-white px-6 py-2 rounded-full font-montserrat font-semibold transition-all" data-category="all">
+                    Todos
+                </button>
+                <button class="menu-filter bg-gray-100 text-text-secondary hover:bg-primary hover:text-white px-6 py-2 rounded-full font-montserrat font-semibold transition-all" data-category="bolos">
+                    Bolos
+                </button>
+                <button class="menu-filter bg-gray-100 text-text-secondary hover:bg-primary hover:text-white px-6 py-2 rounded-full font-montserrat font-semibold transition-all" data-category="salgados">
+                    Salgados
+                </button>
+                <button class="menu-filter bg-gray-100 text-text-secondary hover:bg-primary hover:text-white px-6 py-2 rounded-full font-montserrat font-semibold transition-all" data-category="bebidas">
+                    Bebidas
+                </button>
+            </div>
+            
+            <!-- Menu Items Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8" id="menu-items">
+                <!-- Pastéis de Nata -->
+                <div class="card-food menu-item" data-category="bolos">
+                    <div class="relative overflow-hidden">
+                        <img src="https://images.pixabay.com/photos/2017/07/15/11/21/pasteis-de-nata-2505997_1280.jpg" alt="Pastéis de Nata" class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1571115764595-644a1f56a55c?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <div class="absolute top-4 left-4">
+                            <span class="bg-accent text-white px-2 py-1 rounded-full text-xs font-semibold">Mais Popular</span>
+                        </div>
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.9</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">Pastéis de Nata</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            Os famosos pastéis de nata portugueses com massa folhada crocante e creme suave.
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€1.50</span>
+                            <button class="bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Coxinha -->
+                <div class="card-food menu-item" data-category="salgados">
+                    <div class="relative overflow-hidden">
+                        <img src="https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Coxinha" class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.7</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">Coxinha de Frango</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            Salgado tradicional com recheio de frango desfiado e massa dourada crocante.
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€2.20</span>
+                            <button class="bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bolo de Arroz -->
+                <div class="card-food menu-item" data-category="bolos">
+                    <div class="relative overflow-hidden">
+                        <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Bolo de Arroz" class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.pixabay.com/photos/2017/01/11/11/33/cake-1971552_1280.jpg'; this.onerror=null;" />
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.8</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">Bolo de Arroz</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            Tradicional bolo português com textura única e sabor suave, perfeito para o lanche.
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€1.80</span>
+                            <button class="bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Rissol -->
+                <div class="card-food menu-item" data-category="salgados">
+                    <div class="relative overflow-hidden">
+                        <img src="https://images.pexels.com/photos/5560763/pexels-photo-5560763.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Rissol" class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1551024506-0bccd828d307?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.6</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">Rissol de Camarão</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            Delicioso rissol com recheio cremoso de camarão, empanado e frito na perfeição.
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€2.50</span>
+                            <button class="bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Galão -->
+                <div class="card-food menu-item" data-category="bebidas">
+                    <div class="relative overflow-hidden">
+                        <img src="https://images.pixabay.com/photos/2016/11/29/12/45/coffee-1869820_1280.jpg" alt="Galão" class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.5</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">Galão</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            O tradicional café português com leite, servido em copo alto com espuma cremosa.
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€1.20</span>
+                            <button class="bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Queijada -->
+                <div class="card-food menu-item" data-category="bolos">
+                    <div class="relative overflow-hidden">
+                        <img src="https://images.unsplash.com/photo-1571115764595-644a1f56a55c?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Queijada" class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.pixabay.com/photos/2017/01/11/11/33/cake-1971552_1280.jpg'; this.onerror=null;" />
+                        <div class="absolute top-4 left-4">
+                            <span class="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">Tradicional</span>
+                        </div>
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.7</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">Queijada de Sintra</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            Autêntica queijada de Sintra com queijo fresco, ovos e açúcar, numa massa crocante.
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€1.90</span>
+                            <button class="bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- View Full Menu CTA -->
+            <div class="text-center mt-12">
+                <button class="btn-primary text-lg px-8 py-4">
+                    Ver Menu Completo (50+ Itens)
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Daily Freshness Promise -->
+    <section class="py-20 bg-gradient-to-r from-primary/5 to-secondary/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Content -->
+                <div class="space-y-6">
+                    <span class="text-accent font-dancing text-2xl">A Nossa Promessa</span>
+                    <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary">
+                        Frescos Todas as Manhãs
+                    </h2>
+                    <p class="text-lg text-text-secondary leading-relaxed">
+                        Começamos o nosso dia às 5h da manhã para garantir que todos os nossos produtos 
+                        chegam à sua mesa com a máxima frescura e qualidade.
+                    </p>
+                    
+                    <!-- Quality Features -->
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">✓</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Produção Diária</h4>
+                                <p class="text-text-secondary">Todos os produtos são feitos frescos todas as manhãs</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">✓</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Ingredientes Premium</h4>
+                                <p class="text-text-secondary">Selecionamos apenas os melhores ingredientes portugueses</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">✓</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Certificação HACCP</h4>
+                                <p class="text-text-secondary">Seguimos os mais altos padrões de segurança alimentar</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Certifications -->
+                    <div class="flex flex-wrap gap-4 pt-6">
+                        <div class="bg-white px-4 py-2 rounded-lg shadow-sm border">
+                            <span class="text-sm font-semibold text-text-primary">🏅 Certificado HACCP</span>
+                        </div>
+                        <div class="bg-white px-4 py-2 rounded-lg shadow-sm border">
+                            <span class="text-sm font-semibold text-text-primary">⭐ Avaliação A+</span>
+                        </div>
+                        <div class="bg-white px-4 py-2 rounded-lg shadow-sm border">
+                            <span class="text-sm font-semibold text-text-primary">🇵🇹 100% Português</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Baking Process Image -->
+                <div class="relative">
+                    <img src="https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Fresh baking process" class="w-full h-96 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg"></div>
+                    <div class="absolute bottom-6 left-6 text-white">
+                        <p class="font-semibold">Processo de Confeção</p>
+                        <p class="text-sm opacity-90">Diariamente às 5h da manhã</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Customer Testimonials -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="text-accent font-dancing text-2xl">O Que Dizem os Nossos Clientes</span>
+                <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary mt-2 mb-4">
+                    Avaliações Autênticas
+                </h2>
+                <p class="text-lg text-text-secondary max-w-2xl mx-auto">
+                    Mais de 500 clientes satisfeitos partilham as suas experiências com os nossos sabores portugueses.
+                </p>
+            </div>
+            
+            <!-- Testimonials Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Testimonial 1 -->
+                <div class="bg-surface p-6 rounded-lg shadow-sm">
+                    <div class="flex items-center space-x-1 mb-4">
+                        <span class="text-warning">⭐⭐⭐⭐⭐</span>
+                    </div>
+                    <p class="text-text-secondary mb-4 italic">
+                        "Os pastéis de nata são exatamente como os que comia em Lisboa! 
+                        Finalmente encontrei sabores autênticos portugueses aqui."
+                    </p>
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=100&h=100&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Maria Santos" class="w-10 h-10 rounded-full object-cover" onerror="this.src='https://images.pixabay.com/photos/2016/08/08/09/17/avatar-1577909_1280.png'; this.onerror=null;" />
+                        <div>
+                            <p class="font-semibold text-text-primary">Maria Santos</p>
+                            <p class="text-sm text-text-secondary">Cliente Regular</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 2 -->
+                <div class="bg-surface p-6 rounded-lg shadow-sm">
+                    <div class="flex items-center space-x-1 mb-4">
+                        <span class="text-warning">⭐⭐⭐⭐⭐</span>
+                    </div>
+                    <p class="text-text-secondary mb-4 italic">
+                        "A entrega é sempre rápida e os salgados chegam quentinhos. 
+                        A qualidade é consistente e o atendimento é excelente."
+                    </p>
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=100&h=100&auto=format&fit=crop&ixlib=rb-4.0.3" alt="João Silva" class="w-10 h-10 rounded-full object-cover" onerror="this.src='https://images.pixabay.com/photos/2016/08/08/09/17/avatar-1577909_1280.png'; this.onerror=null;" />
+                        <div>
+                            <p class="font-semibold text-text-primary">João Silva</p>
+                            <p class="text-sm text-text-secondary">Entrega Regular</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 3 -->
+                <div class="bg-surface p-6 rounded-lg shadow-sm">
+                    <div class="flex items-center space-x-1 mb-4">
+                        <span class="text-warning">⭐⭐⭐⭐⭐</span>
+                    </div>
+                    <p class="text-text-secondary mb-4 italic">
+                        "Encomendei para uma festa de aniversário e todos ficaram impressionados. 
+                        Os bolos são uma verdadeira obra de arte!"
+                    </p>
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=100&h=100&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Ana Costa" class="w-10 h-10 rounded-full object-cover" onerror="this.src='https://images.pixabay.com/photos/2016/08/08/09/17/avatar-1577909_1280.png'; this.onerror=null;" />
+                        <div>
+                            <p class="font-semibold text-text-primary">Ana Costa</p>
+                            <p class="text-sm text-text-secondary">Catering</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 pt-16 border-t border-gray-200">
+                <div class="text-center">
+                    <div class="font-playfair text-3xl font-bold text-primary mb-2">500+</div>
+                    <p class="text-text-secondary">Clientes Satisfeitos</p>
+                </div>
+                <div class="text-center">
+                    <div class="font-playfair text-3xl font-bold text-primary mb-2">4.9</div>
+                    <p class="text-text-secondary">Avaliação Média</p>
+                </div>
+                <div class="text-center">
+                    <div class="font-playfair text-3xl font-bold text-primary mb-2">6</div>
+                    <p class="text-text-secondary">Anos de Experiência</p>
+                </div>
+                <div class="text-center">
+                    <div class="font-playfair text-3xl font-bold text-primary mb-2">50+</div>
+                    <p class="text-text-secondary">Produtos Diferentes</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Delivery Coverage -->
+    <section id="delivery" class="py-20 bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Delivery Info -->
+                <div class="space-y-6">
+                    <span class="text-accent font-dancing text-2xl">Entrega Rápida</span>
+                    <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary">
+                        Cobrimos Toda a Região
+                    </h2>
+                    <p class="text-lg text-text-secondary leading-relaxed">
+                        Entregamos os nossos produtos frescos diretamente à sua porta, 
+                        mantendo a qualidade e temperatura ideais durante todo o percurso.
+                    </p>
+                    
+                    <!-- Delivery Features -->
+                    <div class="space-y-4">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">🚚</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Entrega em 30-45 Minutos</h4>
+                                <p class="text-text-secondary">Produtos frescos entregues rapidamente na sua área</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">❄️</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Transporte Refrigerado</h4>
+                                <p class="text-text-secondary">Mantemos a temperatura ideal para preservar a frescura</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">💳</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Pagamento Flexível</h4>
+                                <p class="text-text-secondary">Cartão, MB Way, dinheiro ou transferência bancária</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Delivery Areas -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <h4 class="font-semibold text-text-primary mb-4">Áreas de Entrega</h4>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-success">✓</span>
+                                <span>Centro da Cidade</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-success">✓</span>
+                                <span>Zona Industrial</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-success">✓</span>
+                                <span>Bairros Residenciais</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-success">✓</span>
+                                <span>Campus Universitário</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <p class="text-sm text-text-secondary">
+                                <strong>Pedido mínimo:</strong> €15.00 | <strong>Taxa de entrega:</strong> €2.50
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Map Placeholder -->
+                <div class="relative">
+                    <div class="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <span class="text-primary text-2xl">🗺️</span>
+                            </div>
+                            <h4 class="font-semibold text-text-primary mb-2">Mapa de Cobertura</h4>
+                            <p class="text-text-secondary text-sm">Visualize as nossas áreas de entrega</p>
+                            <button class="mt-4 bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-600 transition-colors">
+                                Ver Mapa Interativo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- In-Store Dining -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Store Images -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-4">
+                        <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Interior da padaria" class="w-full h-48 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.pixabay.com/photos/2016/11/18/14/39/beans-1834984_1280.jpg'; this.onerror=null;" />
+                        <img src="https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Ambiente acolhedor" class="w-full h-32 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.unsplash.com/photo-1517433670267-08bbd4be890f?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                    </div>
+                    <div class="space-y-4 pt-8">
+                        <img src="https://images.pixabay.com/photos/2016/11/18/14/39/beans-1834984_1280.jpg" alt="Área de refeições" class="w-full h-32 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <img src="https://images.unsplash.com/photo-1517433670267-08bbd4be890f?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Balcão de atendimento" class="w-full h-48 object-cover rounded-lg shadow-lg" onerror="this.src='https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop'; this.onerror=null;" />
+                    </div>
+                </div>
+                
+                <!-- Dining Info -->
+                <div class="space-y-6">
+                    <span class="text-accent font-dancing text-2xl">Visite-nos</span>
+                    <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary">
+                        Ambiente Acolhedor Português
+                    </h2>
+                    <p class="text-lg text-text-secondary leading-relaxed">
+                        Desfrute dos nossos produtos num ambiente que transporta diretamente para uma 
+                        tradicional pastelaria portuguesa, com decoração autêntica e música ambiente.
+                    </p>
+                    
+                    <!-- Dining Features -->
+                    <div class="space-y-4">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
+                                <span class="text-accent text-xl">🪑</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Espaço para 40 Pessoas</h4>
+                                <p class="text-text-secondary">Mesas confortáveis para famílias e grupos</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
+                                <span class="text-accent text-xl">📶</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">WiFi Gratuito</h4>
+                                <p class="text-text-secondary">Internet rápida para trabalhar ou relaxar</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
+                                <span class="text-accent text-xl">🎵</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Música Portuguesa</h4>
+                                <p class="text-text-secondary">Ambiente musical tradicional e relaxante</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Opening Hours -->
+                    <div class="bg-surface p-6 rounded-lg">
+                        <h4 class="font-semibold text-text-primary mb-4">Horário de Funcionamento</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Segunda a Sexta</span>
+                                <span class="font-semibold">07:00 - 19:00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Sábado</span>
+                                <span class="font-semibold">08:00 - 18:00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Domingo</span>
+                                <span class="font-semibold">09:00 - 16:00</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-success text-sm">●</span>
+                                <span class="text-sm text-text-secondary">Aberto agora - Fecha às 19:00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loyalty Program & Ordering -->
+    <section class="py-20 bg-gradient-to-r from-secondary/5 to-accent/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="text-accent font-dancing text-2xl">Programa de Fidelidade</span>
+                <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary mt-2 mb-4">
+                    Ganhe Pontos a Cada Compra
+                </h2>
+                <p class="text-lg text-text-secondary max-w-2xl mx-auto">
+                    Junte-se ao nosso programa de fidelidade e desfrute de benefícios exclusivos, 
+                    descontos especiais e ofertas personalizadas.
+                </p>
+            </div>
+            
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Loyalty Benefits -->
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-4">Como Funciona</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-4">
+                                <div class="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <span class="text-primary text-sm font-bold">1</span>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-text-primary">Registe-se Gratuitamente</h4>
+                                    <p class="text-sm text-text-secondary">Crie a sua conta e comece a ganhar pontos imediatamente</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <span class="text-primary text-sm font-bold">2</span>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-text-primary">Ganhe Pontos</h4>
+                                    <p class="text-sm text-text-secondary">1 ponto por cada €1 gasto em produtos</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <span class="text-primary text-sm font-bold">3</span>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-text-primary">Troque por Recompensas</h4>
+                                    <p class="text-sm text-text-secondary">Use os pontos para descontos e produtos gratuitos</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rewards Tiers -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-lg shadow-sm text-center">
+                            <div class="w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-warning text-xl">🥉</span>
+                            </div>
+                            <h4 class="font-semibold text-text-primary text-sm">Bronze</h4>
+                            <p class="text-xs text-text-secondary">0-99 pontos</p>
+                            <p class="text-xs text-accent font-semibold">5% desconto</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm text-center border-2 border-accent">
+                            <div class="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-accent text-xl">🥈</span>
+                            </div>
+                            <h4 class="font-semibold text-text-primary text-sm">Prata</h4>
+                            <p class="text-xs text-text-secondary">100-299 pontos</p>
+                            <p class="text-xs text-accent font-semibold">10% desconto</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm text-center">
+                            <div class="w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-warning text-xl">🥇</span>
+                            </div>
+                            <h4 class="font-semibold text-text-primary text-sm">Ouro</h4>
+                            <p class="text-xs text-text-secondary">300+ pontos</p>
+                            <p class="text-xs text-accent font-semibold">15% desconto</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Ordering Options -->
+                <div class="space-y-6">
+                    <h3 class="font-playfair text-2xl font-semibold text-text-primary">Formas de Encomendar</h3>
+                    
+                    <!-- Online Ordering -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
+                                <span class="text-accent text-xl">💻</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-text-primary mb-2">Encomenda Online</h4>
+                                <p class="text-text-secondary text-sm mb-4">
+                                    Sistema rápido e intuitivo com carrinho persistente e favoritos salvos
+                                </p>
+                                <button class="btn-primary w-full">
+                                    Encomendar Online Agora
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Phone Ordering -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
+                                <span class="text-secondary text-xl">📞</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-text-primary mb-2">Encomenda por Telefone</h4>
+                                <p class="text-text-secondary text-sm mb-4">
+                                    Atendimento personalizado com sugestões baseadas no seu histórico
+                                </p>
+                                <a href="tel:+351234567890" class="bg-secondary hover:bg-secondary-600 text-white font-montserrat font-semibold px-6 py-3 rounded-lg transition-colors w-full block text-center">
+                                    Ligar: +351 234 567 890
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- WhatsApp Ordering -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">💬</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-text-primary mb-2">WhatsApp</h4>
+                                <p class="text-text-secondary text-sm mb-4">
+                                    Encomende facilmente através do WhatsApp com confirmação instantânea
+                                </p>
+                                <a href="https://wa.me/351234567890" class="bg-success hover:bg-success-600 text-white font-montserrat font-semibold px-6 py-3 rounded-lg transition-colors w-full block text-center">
+                                    Enviar Mensagem
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact & Location -->
+    <section id="contact" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12">
+                <!-- Contact Information -->
+                <div class="space-y-8">
+                    <div>
+                        <span class="text-accent font-dancing text-2xl">Contacte-nos</span>
+                        <h2 class="font-playfair text-3xl md:text-4xl font-bold text-text-primary mt-2 mb-4">
+                            Visite-nos ou Entre em Contacto
+                        </h2>
+                        <p class="text-lg text-text-secondary">
+                            Estamos sempre disponíveis para o atender e esclarecer qualquer dúvida 
+                            sobre os nossos produtos e serviços.
+                        </p>
+                    </div>
+                    
+                    <!-- Contact Details -->
+                    <div class="space-y-6">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                                <span class="text-primary text-xl">📍</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Morada</h4>
+                                <p class="text-text-secondary">Rua dos Sabores Portugueses, 123<br />4000-000 Porto, Portugal</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
+                                <span class="text-secondary text-xl">📞</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Telefone</h4>
+                                <a href="tel:+351234567890" class="text-text-secondary hover:text-primary transition-colors">+351 234 567 890</a>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
+                                <span class="text-accent text-xl">✉️</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">Email</h4>
+                                <a href="mailto:info@saboresportugueses.pt" class="text-text-secondary hover:text-primary transition-colors">info@saboresportugueses.pt</a>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
+                                <span class="text-success text-xl">💬</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-text-primary">WhatsApp</h4>
+                                <a href="https://wa.me/351234567890" class="text-text-secondary hover:text-primary transition-colors">+351 234 567 890</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Social Media -->
+                    <div>
+                        <h4 class="font-semibold text-text-primary mb-4">Siga-nos nas Redes Sociais</h4>
+                        <div class="flex space-x-4">
+                            <a href="javascript:void(0)" class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+                                <span class="text-sm">📘</span>
+                            </a>
+                            <a href="javascript:void(0)" class="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center text-accent hover:bg-accent hover:text-white transition-colors">
+                                <span class="text-sm">📷</span>
+                            </a>
+                            <a href="javascript:void(0)" class="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center text-secondary hover:bg-secondary hover:text-white transition-colors">
+                                <span class="text-sm">🐦</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Form -->
+                <div class="bg-surface p-8 rounded-lg">
+                    <h3 class="font-playfair text-2xl font-semibold text-text-primary mb-6">Envie-nos uma Mensagem</h3>
+                    <form class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Nome</label>
+                                <input type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Seu nome" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Telefone</label>
+                                <input type="tel" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Seu telefone" />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-text-primary mb-2">Email</label>
+                            <input type="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="seu@email.com" />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-text-primary mb-2">Assunto</label>
+                            <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                <option>Encomenda Especial</option>
+                                <option>Catering</option>
+                                <option>Informações</option>
+                                <option>Reclamação</option>
+                                <option>Sugestão</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-text-primary mb-2">Mensagem</label>
+                            <textarea rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Escreva a sua mensagem aqui..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary w-full">
+                            Enviar Mensagem
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-text-primary text-white py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-8 h-8 text-accent" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <span class="font-playfair font-bold text-xl">Sabores Portugueses</span>
+                    </div>
+                    <p class="text-gray-300 text-sm">
+                        Autêntica padaria portuguesa oferecendo os melhores bolos e salgados 
+                        tradicionais desde 2018.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">📘</a>
+                        <a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">📷</a>
+                        <a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">🐦</a>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h4 class="font-semibold text-lg mb-4">Links Rápidos</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#menu" class="text-gray-300 hover:text-accent transition-colors">Menu</a></li>
+                        <li><a href="#about" class="text-gray-300 hover:text-accent transition-colors">Nossa História</a></li>
+                        <li><a href="#delivery" class="text-gray-300 hover:text-accent transition-colors">Entrega</a></li>
+                        <li><a href="#contact" class="text-gray-300 hover:text-accent transition-colors">Contacto</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Services -->
+                <div>
+                    <h4 class="font-semibold text-lg mb-4">Serviços</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">Entrega ao Domicílio</a></li>
+                        <li><a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">Catering</a></li>
+                        <li><a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">Encomendas Especiais</a></li>
+                        <li><a href="javascript:void(0)" class="text-gray-300 hover:text-accent transition-colors">Programa Fidelidade</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Newsletter -->
+                <div>
+                    <h4 class="font-semibold text-lg mb-4">Newsletter</h4>
+                    <p class="text-gray-300 text-sm mb-4">
+                        Receba ofertas especiais e novidades diretamente no seu email.
+                    </p>
+                    <form class="space-y-2">
+                        <input type="email" placeholder="Seu email" class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:ring-2 focus:ring-accent focus:border-transparent" />
+                        <button type="submit" class="w-full bg-accent hover:bg-accent-600 text-white py-2 rounded font-semibold transition-colors">
+                            Subscrever
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Bottom Bar -->
+            <div class="border-t border-white/20 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-300 text-sm">
+                    © 2025 Sabores Portugueses. Todos os direitos reservados.
+                </p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="javascript:void(0)" class="text-gray-300 hover:text-accent text-sm transition-colors">Política de Privacidade</a>
+                    <a href="javascript:void(0)" class="text-gray-300 hover:text-accent text-sm transition-colors">Termos de Serviço</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Sticky Bottom Bar (Mobile) -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-40" id="sticky-bottom-bar">
+        <div class="flex space-x-2">
+            <button class="flex-1 bg-accent text-white py-3 rounded-lg font-semibold" onclick="scrollToSection('menu')">
+                🛒 Encomendar
+            </button>
+            <a href="tel:+351234567890" class="flex-1 bg-secondary text-white py-3 rounded-lg font-semibold text-center">
+                📞 Ligar
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Menu filter functionality
+        document.querySelectorAll('.menu-filter').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.menu-filter').forEach(btn => {
+                    btn.classList.remove('active', 'bg-primary', 'text-white');
+                    btn.classList.add('bg-gray-100', 'text-text-secondary');
+                });
+                
+                // Add active class to clicked button
+                this.classList.add('active', 'bg-primary', 'text-white');
+                this.classList.remove('bg-gray-100', 'text-text-secondary');
+                
+                // Filter menu items
+                const category = this.getAttribute('data-category');
+                const menuItems = document.querySelectorAll('.menu-item');
+                
+                menuItems.forEach(item => {
+                    if (category === 'all' || item.getAttribute('data-category') === category) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Smooth scroll function
+        function scrollToSection(sectionId) {
+            document.getElementById(sectionId).scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        // Navbar background on scroll
+        window.addEventListener('scroll', function() {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 100) {
+                nav.classList.add('bg-white/98');
+                nav.classList.remove('bg-white/95');
+            } else {
+                nav.classList.add('bg-white/95');
+                nav.classList.remove('bg-white/98');
+            }
+        });
+
+        // Add to cart functionality (placeholder)
+        document.querySelectorAll('button:contains("Adicionar")').forEach(button => {
+            if (button.textContent.includes('Adicionar')) {
+                button.addEventListener('click', function() {
+                    // Placeholder for add to cart functionality
+                    this.textContent = 'Adicionado!';
+                    this.classList.add('bg-success', 'hover:bg-success-600');
+                    this.classList.remove('bg-accent', 'hover:bg-accent-600');
+                    
+                    setTimeout(() => {
+                        this.textContent = 'Adicionar';
+                        this.classList.remove('bg-success', 'hover:bg-success-600');
+                        this.classList.add('bg-accent', 'hover:bg-accent-600');
+                    }, 2000);
+                });
+            }
+        });
+    </script>
+<script id="dhws-dataInjector" src="../public/dhws-data-injector.js"></script>
+</body>
+</html>
