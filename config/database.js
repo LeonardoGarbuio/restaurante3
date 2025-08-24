@@ -24,17 +24,31 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Inicializar banco de dados
 function initializeDatabase() {
     // Habilitar foreign keys
-db.run('PRAGMA foreign_keys = ON');
-
-    // Criar tabelas
-    createTables();
-    
-    // Inserir dados iniciais
-    insertInitialData();
+    db.run('PRAGMA foreign_keys = ON', (err) => {
+        if (err) {
+            console.error('❌ Erro ao habilitar foreign keys:', err);
+        }
+        
+        // Criar tabelas e depois inserir dados
+        createTables(() => {
+            insertInitialData();
+        });
+    });
 }
   
   // Criar tabelas
-function createTables() {
+function createTables(callback) {
+    let tablesCreated = 0;
+    const totalTables = 4;
+    
+    function checkCompletion() {
+        tablesCreated++;
+        if (tablesCreated === totalTables) {
+            console.log('✅ Tabelas criadas com sucesso');
+            if (callback) callback();
+        }
+    }
+    
     // Tabela de categorias
     db.run(`
         CREATE TABLE IF NOT EXISTS categories (
@@ -47,7 +61,12 @@ function createTables() {
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    `);
+    `, (err) => {
+        if (err) {
+            console.error('❌ Erro ao criar tabela categories:', err);
+        }
+        checkCompletion();
+    });
 
     // Tabela de produtos
     db.run(`
@@ -65,7 +84,12 @@ function createTables() {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories (id)
         )
-    `);
+    `, (err) => {
+        if (err) {
+            console.error('❌ Erro ao criar tabela products:', err);
+        }
+        checkCompletion();
+    });
 
     // Tabela de pedidos
     db.run(`
@@ -83,7 +107,12 @@ function createTables() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    `);
+    `, (err) => {
+        if (err) {
+            console.error('❌ Erro ao criar tabela orders:', err);
+        }
+        checkCompletion();
+    });
 
     // Tabela de itens do pedido
     db.run(`
@@ -98,11 +127,12 @@ function createTables() {
         FOREIGN KEY (order_id) REFERENCES orders (id),
         FOREIGN KEY (product_id) REFERENCES products (id)
         )
-    `);
-
-
-
-    console.log('✅ Tabelas criadas com sucesso');
+    `, (err) => {
+        if (err) {
+            console.error('❌ Erro ao criar tabela order_items:', err);
+        }
+        checkCompletion();
+    });
 }
 
 // Inserir dados iniciais
@@ -111,11 +141,21 @@ function insertInitialData() {
     db.get('SELECT COUNT(*) as count FROM categories', (err, row) => {
         if (err) {
             console.error('❌ Erro ao verificar categorias:', err);
+            console.log('🔄 Tentando criar tabelas novamente...');
+            // Se a tabela não existe, tentar criar novamente
+            setTimeout(() => {
+                createTables(() => {
+                    insertInitialData();
+                });
+            }, 1000);
             return;
         }
         
         if (row.count === 0) {
+            console.log('📝 Inserindo dados iniciais...');
             insertCategories();
+        } else {
+            console.log('✅ Dados iniciais já existem');
         }
     });
 }
