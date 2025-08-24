@@ -8,8 +8,25 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware de segurança
-app.use(helmet());
+// Middleware de segurança com CSP personalizado
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      fontSrc: ["'self'", "https:", "data:"],
+      connectSrc: ["'self'"],
+      mediaSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'self'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    }
+  }
+}));
 app.use(compression());
 
 // Rate limiting
@@ -50,6 +67,21 @@ app.get('/', (req, res) => {
 // Rota para a landing page
 app.get('/landing', (req, res) => {
   res.sendFile(__dirname + '/pages/landing_page.html');
+});
+
+// Rota para o menu completo
+app.get('/menu-completo', (req, res) => {
+  res.sendFile(__dirname + '/pages/menu_simples.html');
+});
+
+// Rota para teste de sincronização
+app.get('/teste-sincronizacao', (req, res) => {
+  res.sendFile(__dirname + '/pages/teste_sincronizacao.html');
+});
+
+// Rota para teste de persistência
+app.get('/teste-persistencia', (req, res) => {
+  res.sendFile(__dirname + '/pages/teste_persistencia.html');
 });
 
 // Middleware de tratamento de erros

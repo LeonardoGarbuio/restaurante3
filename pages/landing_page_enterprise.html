@@ -1139,272 +1139,729 @@
             </a>
         </div>
     </div>
-
+    
     <script>
-        // 🛒 SISTEMA DE CARRINHO SIMPLES E FUNCIONAL PARA PRODUÇÃO
-        console.log('🛒 Sistema de Carrinho Simples carregado!');
+        // 🚀 SISTEMA DE CARRINHO PARA PRODUÇÃO EM LARGA ESCALA
+        console.log('🚀 Sistema de Carrinho Enterprise carregado!');
         
-        // Variável global do carrinho
-        let cartItems = [];
+        // ===== CONFIGURAÇÃO DO SISTEMA =====
+        const SYSTEM_CONFIG = {
+            CART_PREFIX: 'sabores_portugueses_cart',
+            SESSION_PREFIX: 'sabores_portugueses_session',
+            CUSTOMER_PREFIX: 'sabores_portugueses_customer',
+            ORDER_PREFIX: 'sabores_portugueses_order',
+            CART_EXPIRY_HOURS: 24, // Carrinho expira em 24h
+            MAX_CART_ITEMS: 50, // Máximo de itens no carrinho
+            MAX_QUANTITY_PER_ITEM: 99, // Máximo quantidade por item
+            BACKUP_INTERVAL_MS: 30000, // Backup a cada 30 segundos
+            VERSION: '2.0.0'
+        };
         
-        // ===== FUNÇÕES DE CARRINHO SIMPLES =====
+        // ===== GESTOR DE SESSÕES =====
+        class SessionManager {
+            constructor() {
+                this.sessionId = this.getOrCreateSessionId();
+                this.customerId = this.getOrCreateCustomerId();
+                this.sessionData = this.loadSessionData();
+                this.startSessionTimer();
+                console.log(`🔐 Sessão iniciada: ${this.sessionId}`);
+            }
+            
+            getOrCreateSessionId() {
+                let sessionId = sessionStorage.getItem(`${SYSTEM_CONFIG.SESSION_PREFIX}_id`);
+                if (!sessionId) {
+                    sessionId = `sess_${Date.now()}_${this.generateUniqueId()}`;
+                    sessionStorage.setItem(`${SYSTEM_CONFIG.SESSION_PREFIX}_id`, sessionId);
+                }
+                return sessionId;
+            }
+            
+            getOrCreateCustomerId() {
+                let customerId = localStorage.getItem(`${SYSTEM_CONFIG.CUSTOMER_PREFIX}_id`);
+                if (!customerId) {
+                    customerId = `cust_${Date.now()}_${this.generateUniqueId()}`;
+                    localStorage.setItem(`${SYSTEM_CONFIG.CUSTOMER_PREFIX}_id`, customerId);
+                }
+                return customerId;
+            }
+            
+            generateUniqueId() {
+                return Math.random().toString(36).substr(2, 9) + 
+                       Date.now().toString(36) + 
+                       Math.random().toString(36).substr(2, 9);
+            }
+            
+            loadSessionData() {
+                const data = sessionStorage.getItem(`${SYSTEM_CONFIG.SESSION_PREFIX}_${this.sessionId}`);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    // Verificar se a sessão não expirou
+                    if (parsed.createdAt && (Date.now() - new Date(parsed.createdAt).getTime()) < (SYSTEM_CONFIG.CART_EXPIRY_HOURS * 60 * 60 * 1000)) {
+                        return parsed;
+                    }
+                }
+                
+                // Criar nova sessão
+                const newSession = {
+                    sessionId: this.sessionId,
+                    customerId: this.customerId,
+                    createdAt: new Date().toISOString(),
+                    lastActivity: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    language: navigator.language
+                };
+                
+                this.saveSessionData(newSession);
+                return newSession;
+            }
+            
+            saveSessionData(data) {
+                data.lastActivity = new Date().toISOString();
+                sessionStorage.setItem(`${SYSTEM_CONFIG.SESSION_PREFIX}_${this.sessionId}`, JSON.stringify(data));
+            }
+            
+            startSessionTimer() {
+                // Atualizar atividade da sessão a cada 5 minutos
+                setInterval(() => {
+                    this.sessionData.lastActivity = new Date().toISOString();
+                    this.saveSessionData(this.sessionData);
+                }, 5 * 60 * 1000);
+            }
+            
+            getSessionInfo() {
+                return {
+                    sessionId: this.sessionId,
+                    customerId: this.customerId,
+                    createdAt: this.sessionData.createdAt,
+                    lastActivity: this.sessionData.lastActivity,
+                    userAgent: this.sessionData.userAgent,
+                    screenResolution: this.sessionData.screenResolution,
+                    timezone: this.sessionData.timezone,
+                    language: this.sessionData.language
+                };
+            }
+        }
         
-        // Carregar carrinho do localStorage
-        function loadCart() {
-            const savedCart = localStorage.getItem('sabores_portugueses_cart');
-            if (savedCart) {
-                try {
-                    cartItems = JSON.parse(savedCart);
-                    console.log('🛒 Carrinho carregado:', cartItems);
-                } catch (e) {
-                    cartItems = [];
-                    console.warn('Erro ao carregar carrinho:', e);
+        // ===== GESTOR DE CARRINHO ENTERPRISE =====
+        class EnterpriseCartManager {
+            constructor(sessionManager) {
+                this.sessionManager = sessionManager;
+                this.cartItems = this.loadCart();
+                this.cartHistory = this.loadCartHistory();
+                this.startAutoBackup();
+                this.startCartValidation();
+                console.log(`🛒 Carrinho Enterprise iniciado para sessão: ${sessionManager.sessionId}`);
+            }
+            
+            loadCart() {
+                const cartData = sessionStorage.getItem(`${SYSTEM_CONFIG.CART_PREFIX}_${this.sessionManager.sessionId}`);
+                if (cartData) {
+                    const parsed = JSON.parse(cartData);
+                    // Validar e limpar dados corrompidos
+                    return this.validateCartData(parsed);
+                }
+                return [];
+            }
+            
+            loadCartHistory() {
+                const historyData = localStorage.getItem(`${SYSTEM_CONFIG.CART_PREFIX}_history_${this.sessionManager.customerId}`);
+                return historyData ? JSON.parse(historyData) : [];
+            }
+            
+            validateCartData(cartData) {
+                if (!Array.isArray(cartData)) return [];
+                
+                return cartData.filter(item => {
+                    return item && 
+                           typeof item === 'object' &&
+                           item.id && 
+                           item.name && 
+                           typeof item.price === 'number' && 
+                           item.price > 0 &&
+                           typeof item.quantity === 'number' && 
+                           item.quantity > 0 &&
+                           item.quantity <= SYSTEM_CONFIG.MAX_QUANTITY_PER_ITEM;
+                }).map(item => ({
+                    ...item,
+                    lastModified: item.lastModified || new Date().toISOString(),
+                    price: parseFloat(item.price),
+                    quantity: parseInt(item.quantity)
+                }));
+            }
+            
+            saveCart() {
+                const cartData = {
+                    items: this.cartItems,
+                    sessionId: this.sessionManager.sessionId,
+                    customerId: this.sessionManager.customerId,
+                    lastModified: new Date().toISOString(),
+                    itemCount: this.cartItems.length,
+                    totalValue: this.calculateTotal()
+                };
+                
+                // Salvar na sessão atual
+                sessionStorage.setItem(`${SYSTEM_CONFIG.CART_PREFIX}_${this.sessionManager.sessionId}`, JSON.stringify(cartData));
+                
+                // Backup no localStorage
+                localStorage.setItem(`${SYSTEM_CONFIG.CART_PREFIX}_backup_${this.sessionManager.sessionId}`, JSON.stringify(cartData));
+                
+                // Salvar histórico
+                this.saveCartHistory();
+                
+                // Log para analytics
+                this.logCartActivity('cart_updated', cartData);
+            }
+            
+            saveCartHistory() {
+                const historyEntry = {
+                    timestamp: new Date().toISOString(),
+                    sessionId: this.sessionManager.sessionId,
+                    customerId: this.sessionManager.customerId,
+                    items: [...this.cartItems],
+                    totalValue: this.calculateTotal(),
+                    itemCount: this.cartItems.length
+                };
+                
+                this.cartHistory.push(historyEntry);
+                
+                // Manter apenas os últimos 100 registros
+                if (this.cartHistory.length > 100) {
+                    this.cartHistory = this.cartHistory.slice(-100);
+                }
+                
+                localStorage.setItem(`${SYSTEM_CONFIG.CART_PREFIX}_history_${this.sessionManager.customerId}`, JSON.stringify(this.cartHistory));
+            }
+            
+            startAutoBackup() {
+                // Backup automático a cada 30 segundos
+                setInterval(() => {
+                    this.saveCart();
+                }, SYSTEM_CONFIG.BACKUP_INTERVAL_MS);
+            }
+            
+            startCartValidation() {
+                // Validar carrinho a cada minuto
+                setInterval(() => {
+                    this.validateAndCleanCart();
+                }, 60 * 1000);
+            }
+            
+            validateAndCleanCart() {
+                const originalLength = this.cartItems.length;
+                this.cartItems = this.validateCartData(this.cartItems);
+                
+                if (this.cartItems.length !== originalLength) {
+                    console.log(`🧹 Carrinho limpo: ${originalLength - this.cartItems.length} itens inválidos removidos`);
+                    this.saveCart();
                 }
             }
-        }
-
-        // Salvar carrinho no localStorage
-        function saveCart() {
-            localStorage.setItem('sabores_portugueses_cart', JSON.stringify(cartItems));
-            console.log('💾 Carrinho salvo:', cartItems);
-        }
-
-        // Adicionar ao carrinho
-        function addToCart(productName, price) {
-            const existingItem = cartItems.find(item => item.name === productName);
             
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cartItems.push({
-                    name: productName,
-                    price: parseFloat(price),
-                    quantity: 1,
-                    addedAt: new Date().toISOString()
-                });
-            }
-            
-            saveCart();
-            updateCartCount();
-            showNotification(`${productName} adicionado ao carrinho!`, 'success');
-        }
-
-        // Atualizar contador do carrinho
-        function updateCartCount() {
-            const count = cartItems.reduce((total, item) => total + item.quantity, 0);
-            
-            const cartCountElement = document.getElementById('cart-count');
-            if (cartCountElement) {
-                cartCountElement.textContent = count;
-            }
-            
-            // Atualizar título da página
-            if (count > 0) {
-                document.title = `(${count}) Sabores Portugueses - Authentic Portuguese Bakery`;
-            } else {
-                document.title = 'Sabores Portugueses - Authentic Portuguese Bakery';
-            }
-        }
-
-        // Mostrar notificação
-        function showNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                type === 'success' ? 'bg-green-500 text-white' : 
-                type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
-            }`;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-
-        // Mostrar modal do carrinho
-        function showCartModal() {
-            const modal = document.getElementById('cart-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                updateCartDisplay();
-            }
-        }
-
-        // Fechar modal do carrinho
-        function closeCartModal() {
-            const modal = document.getElementById('cart-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-
-        // Atualizar display do carrinho
-        function updateCartDisplay() {
-            const cartItemsContainer = document.getElementById('cart-items');
-            const cartTotal = document.getElementById('cart-total');
-            const emptyMessage = document.getElementById('empty-cart-message');
-            const cartActions = document.getElementById('cart-actions');
-
-            if (cartItems.length === 0) {
-                if (emptyMessage) emptyMessage.classList.remove('hidden');
-                if (cartActions) cartActions.classList.add('hidden');
-                if (cartItemsContainer) cartItemsContainer.innerHTML = '';
-                return;
-            }
-
-            if (emptyMessage) emptyMessage.classList.add('hidden');
-            if (cartActions) cartActions.classList.remove('hidden');
-
-            let total = 0;
-            if (cartItemsContainer) {
-                cartItemsContainer.innerHTML = cartItems.map(item => {
-                    const itemTotal = item.price * item.quantity;
-                    total += itemTotal;
-
-                    return `
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-gray-800">${item.name}</h3>
-                                <p class="text-sm text-gray-600">€${item.price.toFixed(2)} x ${item.quantity}</p>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="flex items-center space-x-2">
-                                    <button onclick="updateQuantity('${item.name}', ${item.quantity - 1})" 
-                                            class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">-</button>
-                                    <span class="w-8 text-center font-semibold">${item.quantity}</span>
-                                    <button onclick="updateQuantity('${item.name}', ${item.quantity + 1})" 
-                                            class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">+</button>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-bold text-primary">€${itemTotal.toFixed(2)}</div>
-                                    <button onclick="removeFromCart('${item.name}')" 
-                                            class="text-red-500 hover:text-red-700 text-sm transition-colors">Remover</button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            if (cartTotal) {
-                cartTotal.textContent = `€${total.toFixed(2)}`;
-            }
-        }
-
-        // Atualizar quantidade de um item
-        function updateQuantity(productName, newQuantity) {
-            if (newQuantity <= 0) {
-                removeFromCart(productName);
-                return;
-            }
-
-            const item = cartItems.find(item => item.name === productName);
-            if (item) {
-                item.quantity = newQuantity;
-                saveCart();
-                updateCartCount();
-                updateCartDisplay();
-            }
-        }
-
-        // Remover item do carrinho
-        function removeFromCart(productName) {
-            cartItems = cartItems.filter(item => item.name !== productName);
-            saveCart();
-            updateCartCount();
-            updateCartDisplay();
-            showNotification(`${productName} removido do carrinho!`, 'info');
-        }
-
-        // Limpar carrinho
-        function clearCart() {
-            cartItems = [];
-            saveCart();
-            updateCartCount();
-            updateCartDisplay();
-            showNotification('Carrinho limpo!', 'info');
-        }
-
-        // Finalizar compra
-        function checkout() {
-            if (cartItems.length === 0) {
-                showNotification('Carrinho vazio!', 'error');
-                return;
-            }
-            
-            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            alert(`🎉 Encomenda finalizada!\n\nTotal: €${total.toFixed(2)}\nItens: ${cartItems.length}\n\nObrigado pela sua encomenda!`);
-            
-            // Limpar carrinho após finalizar
-            clearCart();
-            closeCartModal();
-        }
-
-        // Configuração dos botões quando a página carregar
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DOM carregado! Configurando sistema...');
-            
-            // Inicializar carrinho
-            loadCart();
-            updateCartCount();
-            
-            // Configurar botão do carrinho
-            const cartBtn = document.getElementById('cart-btn');
-            if (cartBtn) {
-                cartBtn.addEventListener('click', showCartModal);
-                console.log('✅ Botão do carrinho configurado!');
-            }
-            
-            // Configurar botão de fechar modal
-            const closeCartBtn = document.getElementById('close-cart-modal');
-            if (closeCartBtn) {
-                closeCartBtn.addEventListener('click', closeCartModal);
-                console.log('✅ Botão fechar modal configurado!');
-            }
-            
-            // Configurar botão de limpar carrinho
-            const clearCartBtn = document.getElementById('clear-cart');
-            if (clearCartBtn) {
-                clearCartBtn.addEventListener('click', clearCart);
-                console.log('✅ Botão limpar carrinho configurado!');
-            }
-            
-            // Configurar botão de checkout
-            const checkoutBtn = document.getElementById('checkout-btn');
-            if (checkoutBtn) {
-                checkoutBtn.addEventListener('click', checkout);
-                console.log('✅ Botão checkout configurado!');
-            }
-            
-            // Fechar modal ao clicar fora dele
-            const cartModal = document.getElementById('cart-modal');
-            if (cartModal) {
-                cartModal.addEventListener('click', function(e) {
-                    if (e.target === cartModal) {
-                        closeCartModal();
+            addToCart(productName, price, productId = null, metadata = {}) {
+                // Verificar limites
+                if (this.cartItems.length >= SYSTEM_CONFIG.MAX_CART_ITEMS) {
+                    throw new Error(`Limite máximo de ${SYSTEM_CONFIG.MAX_CART_ITEMS} itens no carrinho atingido`);
+                }
+                
+                const existingItem = this.cartItems.find(item => item.name === productName);
+                
+                if (existingItem) {
+                    // Atualizar quantidade existente
+                    const newQuantity = existingItem.quantity + 1;
+                    if (newQuantity > SYSTEM_CONFIG.MAX_QUANTITY_PER_ITEM) {
+                        throw new Error(`Quantidade máxima de ${SYSTEM_CONFIG.MAX_QUANTITY_PER_ITEM} por item atingida`);
                     }
-                });
-                console.log('✅ Modal configurado para fechar ao clicar fora!');
-            }
-            
-            // Configurar botões "Adicionar ao Carrinho" 
-            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
-            addToCartButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const productName = this.getAttribute('data-product');
-                    const productPrice = this.getAttribute('data-price');
                     
-                    if (productName && productPrice) {
-                        addToCart(productName, productPrice);
-                    } else {
-                        console.error('❌ Produto sem nome ou preço definido');
-                    }
+                    existingItem.quantity = newQuantity;
+                    existingItem.lastModified = new Date().toISOString();
+                    existingItem.modifiedCount = (existingItem.modifiedCount || 0) + 1;
+                } else {
+                    // Adicionar novo item
+                    const newItem = {
+                        id: productId || `item_${Date.now()}_${this.sessionManager.generateUniqueId()}`,
+                        name: productName,
+                        price: parseFloat(price),
+                        quantity: 1,
+                        addedAt: new Date().toISOString(),
+                        lastModified: new Date().toISOString(),
+                        sessionId: this.sessionManager.sessionId,
+                        customerId: this.sessionManager.customerId,
+                        metadata: {
+                            userAgent: navigator.userAgent,
+                            timestamp: new Date().toISOString(),
+                            ...metadata
+                        }
+                    };
+                    
+                    this.cartItems.push(newItem);
+                }
+                
+                // Salvar e atualizar UI
+                this.saveCart();
+                this.updateCartCount();
+                
+                // Log para analytics
+                this.logCartActivity('item_added', {
+                    productName,
+                    price,
+                    quantity: existingItem ? existingItem.quantity : 1,
+                    totalItems: this.cartItems.length
                 });
+                
+                return this.cartItems;
+            }
+            
+            updateQuantity(productName, change) {
+                const item = this.cartItems.find(item => item.name === productName);
+                if (!item) return false;
+                
+                const newQuantity = item.quantity + change;
+                
+                if (newQuantity <= 0) {
+                    this.removeFromCart(productName);
+                    return true;
+                }
+                
+                if (newQuantity > SYSTEM_CONFIG.MAX_QUANTITY_PER_ITEM) {
+                    throw new Error(`Quantidade máxima de ${SYSTEM_CONFIG.MAX_QUANTITY_PER_ITEM} por item atingida`);
+                }
+                
+                item.quantity = newQuantity;
+                item.lastModified = new Date().toISOString();
+                item.modifiedCount = (item.modifiedCount || 0) + 1;
+                
+                this.saveCart();
+                this.updateCartCount();
+                
+                // Log para analytics
+                this.logCartActivity('quantity_updated', {
+                    productName,
+                    oldQuantity: newQuantity - change,
+                    newQuantity,
+                    change
+                });
+                
+                return true;
+            }
+            
+            removeFromCart(productName) {
+                const itemIndex = this.cartItems.findIndex(item => item.name === productName);
+                if (itemIndex === -1) return false;
+                
+                const removedItem = this.cartItems[itemIndex];
+                this.cartItems.splice(itemIndex, 1);
+                
+                this.saveCart();
+                this.updateCartCount();
+                
+                // Log para analytics
+                this.logCartActivity('item_removed', {
+                    productName,
+                    price: removedItem.price,
+                    quantity: removedItem.quantity
+                });
+                
+                return true;
+            }
+            
+            clearCart() {
+                const clearedItems = [...this.cartItems];
+                this.cartItems = [];
+                
+                this.saveCart();
+                this.updateCartCount();
+                
+                // Log para analytics
+                this.logCartActivity('cart_cleared', {
+                    clearedItemsCount: clearedItems.length,
+                    totalValue: this.calculateTotal()
+                });
+                
+                return clearedItems;
+            }
+            
+            calculateTotal() {
+                return this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            }
+            
+            getCartSummary() {
+                return {
+                    itemCount: this.cartItems.length,
+                    totalValue: this.calculateTotal(),
+                    sessionId: this.sessionManager.sessionId,
+                    customerId: this.sessionManager.customerId,
+                    lastModified: new Date().toISOString(),
+                    items: this.cartItems.map(item => ({
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        subtotal: item.price * item.quantity
+                    }))
+                };
+            }
+            
+            updateCartCount() {
+                const count = this.cartItems.reduce((total, item) => total + item.quantity, 0);
+                const cartCountElement = document.getElementById('cart-count');
+                const cartCountMobileElement = document.getElementById('cart-count-mobile');
+                
+                if (cartCountElement) {
+                    cartCountElement.textContent = count;
+                }
+                if (cartCountMobileElement) {
+                    cartCountMobileElement.textContent = count;
+                }
+                
+                // Atualizar título da página com contador
+                if (count > 0) {
+                    document.title = `(${count}) ${document.title.replace(/^\(\d+\)\s*/, '')}`;
+                } else {
+                    document.title = document.title.replace(/^\(\d+\)\s*/, '');
+                }
+            }
+            
+            logCartActivity(action, data) {
+                const logEntry = {
+                    timestamp: new Date().toISOString(),
+                    action,
+                    sessionId: this.sessionManager.sessionId,
+                    customerId: this.sessionManager.customerId,
+                    data,
+                    userAgent: navigator.userAgent,
+                    url: window.location.href
+                };
+                
+                // Salvar log localmente (em produção, enviar para backend)
+                const logs = JSON.parse(localStorage.getItem(`${SYSTEM_CONFIG.CART_PREFIX}_logs_${this.sessionManager.customerId}`) || '[]');
+                logs.push(logEntry);
+                
+                // Manter apenas os últimos 1000 logs
+                if (logs.length > 1000) {
+                    logs.splice(0, logs.length - 1000);
+                }
+                
+                localStorage.setItem(`${SYSTEM_CONFIG.CART_PREFIX}_logs_${this.sessionManager.customerId}`, JSON.stringify(logs));
+                
+                // Em produção, enviar para sistema de analytics
+                // this.sendAnalyticsLog(logEntry);
+                
+                console.log(`📊 Cart Activity: ${action}`, logEntry);
+            }
+            
+            // Método para integração futura com backend
+            sendAnalyticsLog(logEntry) {
+                // Em produção, enviar para sistema de analytics
+                fetch('/api/analytics/cart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(logEntry)
+                }).catch(error => {
+                    console.warn('Analytics não disponível:', error);
+                });
+            }
+        }
+        
+        // ===== GESTOR DE ENCOMENDAS ENTERPRISE =====
+        class EnterpriseOrderManager {
+            constructor(cartManager, sessionManager) {
+                this.cartManager = cartManager;
+                this.sessionManager = sessionManager;
+                this.orders = this.loadOrders();
+                console.log(`📋 Gestor de Encomendas Enterprise iniciado`);
+            }
+            
+            loadOrders() {
+                const ordersData = localStorage.getItem(`${SYSTEM_CONFIG.ORDER_PREFIX}_${this.sessionManager.customerId}`);
+                return ordersData ? JSON.parse(ordersData) : [];
+            }
+            
+            saveOrders() {
+                localStorage.setItem(`${SYSTEM_CONFIG.ORDER_PREFIX}_${this.sessionManager.customerId}`, JSON.stringify(this.orders));
+            }
+            
+            createOrder(customerInfo = {}) {
+                if (this.cartManager.cartItems.length === 0) {
+                    throw new Error('Carrinho vazio - não é possível criar encomenda');
+                }
+                
+                const order = {
+                    orderId: `ORD_${Date.now()}_${this.sessionManager.generateUniqueId()}`,
+                    sessionId: this.sessionManager.sessionId,
+                    customerId: this.sessionManager.customerId,
+                    customerInfo: {
+                        name: customerInfo.name || 'Cliente Anónimo',
+                        phone: customerInfo.phone || '',
+                        email: customerInfo.email || '',
+                        address: customerInfo.address || '',
+                        notes: customerInfo.notes || ''
+                    },
+                    items: [...this.cartManager.cartItems],
+                    summary: this.cartManager.getCartSummary(),
+                    status: 'pending',
+                    paymentStatus: 'pending',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    metadata: {
+                        userAgent: navigator.userAgent,
+                        screenResolution: this.sessionManager.sessionData.screenResolution,
+                        timezone: this.sessionManager.sessionData.timezone,
+                        language: this.sessionManager.sessionData.language,
+                        referrer: document.referrer,
+                        utmSource: this.getUTMParameters().utm_source,
+                        utmMedium: this.getUTMParameters().utm_medium,
+                        utmCampaign: this.getUTMParameters().utm_campaign
+                    }
+                };
+                
+                // Adicionar à lista de encomendas
+                this.orders.push(order);
+                this.saveOrders();
+                
+                // Log para analytics
+                this.cartManager.logCartActivity('order_created', {
+                    orderId: order.orderId,
+                    totalValue: order.summary.totalValue,
+                    itemCount: order.summary.itemCount
+                });
+                
+                return order;
+            }
+            
+            getUTMParameters() {
+                const urlParams = new URLSearchParams(window.location.search);
+                return {
+                    utm_source: urlParams.get('utm_source') || '',
+                    utm_medium: urlParams.get('utm_medium') || '',
+                    utm_campaign: urlParams.get('utm_campaign') || ''
+                };
+            }
+            
+            getOrder(orderId) {
+                return this.orders.find(order => order.orderId === orderId);
+            }
+            
+            updateOrderStatus(orderId, status, notes = '') {
+                const order = this.getOrder(orderId);
+                if (!order) return false;
+                
+                order.status = status;
+                order.updatedAt = new Date().toISOString();
+                order.statusHistory = order.statusHistory || [];
+                order.statusHistory.push({
+                    status,
+                    timestamp: new Date().toISOString(),
+                    notes
+                });
+                
+                this.saveOrders();
+                
+                // Log para analytics
+                this.cartManager.logCartActivity('order_status_updated', {
+                    orderId,
+                    oldStatus: order.statusHistory[order.statusHistory.length - 2]?.status || 'unknown',
+                    newStatus: status,
+                    notes
+                });
+                
+                return true;
+            }
+            
+            getOrdersByStatus(status) {
+                return this.orders.filter(order => order.status === status);
+            }
+            
+            getOrdersSummary() {
+                const totalOrders = this.orders.length;
+                const totalValue = this.orders.reduce((sum, order) => sum + order.summary.totalValue, 0);
+                const statusCounts = {};
+                
+                this.orders.forEach(order => {
+                    statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+                });
+                
+                return {
+                    totalOrders,
+                    totalValue,
+                    statusCounts,
+                    averageOrderValue: totalOrders > 0 ? totalValue / totalOrders : 0
+                };
+            }
+        }
+        
+        // ===== INICIALIZAÇÃO DO SISTEMA =====
+        let sessionManager, cartManager, orderManager;
+        
+        function initializeEnterpriseSystem() {
+            try {
+                // Inicializar gestores
+                sessionManager = new SessionManager();
+                cartManager = new EnterpriseCartManager(sessionManager);
+                orderManager = new EnterpriseOrderManager(cartManager, sessionManager);
+                
+                // Configurar sistema de recuperação
+                setupRecoverySystem();
+                
+                // Configurar sistema de monitorização
+                setupMonitoringSystem();
+                
+                console.log('✅ Sistema Enterprise inicializado com sucesso!');
+                console.log('📊 Configuração:', SYSTEM_CONFIG);
+                console.log('🔐 Sessão:', sessionManager.getSessionInfo());
+                
+                return true;
+            } catch (error) {
+                console.error('❌ Erro ao inicializar sistema Enterprise:', error);
+                // Fallback para sistema simples
+                return initializeSimpleSystem();
+            }
+        }
+        
+        function initializeSimpleSystem() {
+            console.log('🔄 Inicializando sistema simples como fallback...');
+            // Sistema simples como backup
+            let cartItems = [];
+            
+            // Funções básicas
+            window.addToCart = function(productName, price) {
+                const existingItem = cartItems.find(item => item.name === productName);
+                if (existingItem) {
+                    existingItem.quantity += 1;
+                } else {
+                    cartItems.push({
+                        name: productName,
+                        price: parseFloat(price),
+                        quantity: 1
+                    });
+                }
+                
+                const count = cartItems.reduce((total, item) => total + item.quantity, 0);
+                document.getElementById('cart-count').textContent = count;
+                console.log(`🛒 ${productName} adicionado ao carrinho!`);
+            };
+            
+            return true;
+        }
+        
+        function setupRecoverySystem() {
+            // Sistema de recuperação automática
+            window.addEventListener('beforeunload', () => {
+                cartManager.saveCart();
             });
             
-            console.log(`✅ ${addToCartButtons.length} botões "Adicionar ao Carrinho" configurados!`);
-        });
+            // Recuperar carrinho se a página for recarregada
+            window.addEventListener('load', () => {
+                if (cartManager && cartManager.cartItems.length > 0) {
+                    cartManager.updateCartCount();
+                    console.log('🔄 Carrinho recuperado após reload');
+                }
+            });
+        }
+        
+        function setupMonitoringSystem() {
+            // Monitorizar performance do carrinho
+            let lastCartUpdate = Date.now();
+            
+            setInterval(() => {
+                const now = Date.now();
+                const timeSinceLastUpdate = now - lastCartUpdate;
+                
+                if (timeSinceLastUpdate > 5 * 60 * 1000) { // 5 minutos
+                    console.warn('⚠️ Carrinho não atualizado há mais de 5 minutos');
+                }
+                
+                lastCartUpdate = now;
+            }, 60 * 1000);
+        }
+        
+        // ===== FUNÇÕES PÚBLICAS (API) =====
+        function addToCart(productName, price, productId = null, metadata = {}) {
+            try {
+                if (!cartManager) {
+                    throw new Error('Sistema de carrinho não inicializado');
+                }
+                
+                return cartManager.addToCart(productName, price, productId, metadata);
+            } catch (error) {
+                console.error('❌ Erro ao adicionar ao carrinho:', error);
+                showNotification(`Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function updateQuantity(productName, change) {
+            try {
+                if (!cartManager) {
+                    throw new Error('Sistema de carrinho não inicializado');
+                }
+                
+                return cartManager.updateQuantity(productName, change);
+            } catch (error) {
+                console.error('❌ Erro ao atualizar quantidade:', error);
+                showNotification(`Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function removeFromCart(productName) {
+            try {
+                if (!cartManager) {
+                    throw new Error('Sistema de carrinho não inicializado');
+                }
+                
+                return cartManager.removeFromCart(productName);
+            } catch (error) {
+                console.error('❌ Erro ao remover do carrinho:', error);
+                showNotification(`Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function clearCart() {
+            try {
+                if (!cartManager) {
+                    throw new Error('Sistema de carrinho não inicializado');
+                }
+                
+                const clearedItems = cartManager.clearCart();
+                showNotification(`Carrinho limpo! ${clearedItems.length} itens removidos`, 'info');
+                return clearedItems;
+            } catch (error) {
+                console.error('❌ Erro ao limpar carrinho:', error);
+                showNotification(`Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function checkout(customerInfo = {}) {
+            try {
+                if (!orderManager) {
+                    throw new Error('Sistema de encomendas não inicializado');
+                }
+                
+                const order = orderManager.createOrder(customerInfo);
+                
+                // Limpar carrinho após criar encomenda
+                cartManager.clearCart();
+                
+                // Mostrar confirmação
+                const message = `🛒 **Encomenda #${order.orderId} Criada!**\n\n` +
+                    `Total: €${order.summary.totalValue.toFixed(2)}\n` +
+                    `Itens: ${order.summary.itemCount}\n\n` +
+                    `Status: ${order.status}\n` +
+                    `Obrigado pela sua encomenda! 🎉`;
+                
+                alert(message);
+                
+                showNotification(`Encomenda #${order.orderId} criada com sucesso!`, 'success');
+                
+                return order;
+            } catch (error) {
+                console.error('❌ Erro ao finalizar compra:', error);
+                showNotification(`Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
         
         // ===== FUNÇÕES DE UTILIDADE =====
         function showCartModal() {
@@ -1425,8 +1882,49 @@
         }
         
         function renderCartItems() {
-            // Esta função agora usa updateCartDisplay
-            updateCartDisplay();
+            if (!cartManager) return;
+            
+            const cartItemsContainer = document.getElementById('cart-items');
+            const emptyMessage = document.getElementById('empty-cart-message');
+            const cartActions = document.getElementById('cart-actions');
+            const cartTotal = document.getElementById('cart-total');
+            
+            if (cartManager.cartItems.length === 0) {
+                if (cartItemsContainer) cartItemsContainer.innerHTML = '';
+                if (emptyMessage) emptyMessage.classList.remove('hidden');
+                if (cartActions) cartActions.classList.add('hidden');
+                if (cartTotal) cartTotal.textContent = '€0.00';
+                return;
+            }
+            
+            if (emptyMessage) emptyMessage.classList.add('hidden');
+            if (cartActions) cartActions.classList.remove('hidden');
+            
+            const total = cartManager.calculateTotal();
+            if (cartTotal) cartTotal.textContent = `€${total.toFixed(2)}`;
+            
+            if (cartItemsContainer) {
+                cartItemsContainer.innerHTML = cartManager.cartItems.map(item => `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-text-primary">${item.name}</h4>
+                            <p class="text-sm text-text-secondary">€${item.price.toFixed(2)} cada</p>
+                            <p class="text-xs text-gray-500">ID: ${item.id}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2">
+                                <button onclick="updateQuantity('${item.name}', -1)" class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">-</button>
+                                <span class="w-8 text-center font-semibold">${item.quantity}</span>
+                                <button onclick="updateQuantity('${item.name}', 1)" class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">+</button>
+                            </div>
+                            <div class="text-right min-w-[80px]">
+                                <p class="font-semibold text-primary">€${(item.price * item.quantity).toFixed(2)}</p>
+                            </div>
+                            <button onclick="removeFromCart('${item.name}')" class="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white font-bold transition-colors transition-all">×</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
         }
         
         function showNotification(message, type = 'info') {
@@ -1445,7 +1943,7 @@
         }
         
         function showFullMenu() {
-            window.location.href = 'menu_simples.html';
+            window.location.href = '/menu-completo';
         }
         
         function initializeUI() {
@@ -1457,10 +1955,14 @@
         
         // ===== INICIALIZAÇÃO QUANDO A PÁGINA CARREGAR =====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DOM carregado! Inicializando sistema de carrinho...');
+            console.log('✅ DOM carregado! Inicializando sistema Enterprise...');
             
-            // Inicializar sistema de carrinho simples
-            loadCart();
+            // Inicializar sistema Enterprise
+            if (initializeEnterpriseSystem()) {
+                console.log('🚀 Sistema Enterprise ativo!');
+            } else {
+                console.log('⚠️ Sistema Enterprise falhou, usando fallback');
+            }
             
             // Configurar botões
             const closeCartBtn = document.getElementById('close-cart-modal');
@@ -1529,9 +2031,9 @@
             const mobileBtn = document.getElementById('mobile-menu-btn');
             if (mobileBtn) {
                 mobileBtn.onclick = function() {
-            const mobileMenu = document.getElementById('mobile-menu');
+                    const mobileMenu = document.getElementById('mobile-menu');
                     if (mobileMenu) {
-            mobileMenu.classList.toggle('hidden');
+                        mobileMenu.classList.toggle('hidden');
                         console.log('📱 Menu mobile alternado!');
                     }
                 };
@@ -1556,7 +2058,7 @@
                 });
             }
         }
-
+        
         window.addEventListener('scroll', function() {
             const nav = document.querySelector('nav');
             if (window.scrollY > 100) {
@@ -1567,7 +2069,7 @@
                 nav.classList.remove('bg-white/98');
             }
         });
-
+        
         // Função para mostrar modal do carrinho
         function showCartModal() {
             const modal = document.getElementById('cart-modal');
@@ -1642,7 +2144,7 @@
                 item.quantity += change;
                 if (item.quantity <= 0) {
                     removeFromCart(productName);
-                    } else {
+                } else {
                     updateCartCount();
                     renderCartItems();
                 }
@@ -1725,7 +2227,7 @@
             document.body.appendChild(notification);
             
             // Remover após 3 segundos
-                    setTimeout(() => {
+            setTimeout(() => {
                 notification.remove();
             }, 3000);
         }
@@ -1837,10 +2339,6 @@
                 };
             }
             
-            // Inicializar filtros de menu
-            initializeMenuFilters();
-            console.log('🔍 Filtros de menu inicializados!');
-            
             // Inicializar UI (carrinho sempre visível)
             initializeUI();
             
@@ -1861,135 +2359,6 @@
             }
         }
 
-        // ===== SISTEMA DE FILTROS DE MENU =====
-        function initializeMenuFilters() {
-            const filterButtons = document.querySelectorAll('.menu-filter');
-            const menuItems = document.querySelectorAll('.menu-item');
-            
-            console.log(`🔍 Inicializando filtros de menu: ${filterButtons.length} botões, ${menuItems.length} itens`);
-            
-            filterButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const category = this.getAttribute('data-category');
-                    console.log(`🎯 Filtro selecionado: ${category}`);
-                    
-                    // Atualizar estado ativo dos botões
-                    filterButtons.forEach(btn => {
-                        btn.classList.remove('active', 'bg-primary', 'text-white');
-                        btn.classList.add('bg-gray-100', 'text-text-secondary');
-                    });
-                    
-                    this.classList.remove('bg-gray-100', 'text-text-secondary');
-                    this.classList.add('active', 'bg-primary', 'text-white');
-                    
-                    // Filtrar itens do menu
-                    filterMenuItems(category);
-                    
-                    // Log para analytics
-                    if (cartManager) {
-                        cartManager.logCartActivity('menu_filter_used', {
-                            category,
-                            timestamp: new Date().toISOString(),
-                            userAgent: navigator.userAgent
-                        });
-                    }
-                });
-            });
-            
-            // Mostrar todos os itens por padrão
-            showAllMenuItems();
-        }
-        
-        function filterMenuItems(category) {
-            const menuItems = document.querySelectorAll('.menu-item');
-            let visibleCount = 0;
-            
-            menuItems.forEach(item => {
-                const itemCategory = item.getAttribute('data-category');
-                
-                if (category === 'all' || itemCategory === category) {
-                    item.style.display = 'block';
-                    item.style.animation = 'fadeInUp 0.5s ease-out';
-                    visibleCount++;
-            } else {
-                    item.style.display = 'none';
-                }
-            });
-            
-            console.log(`✅ Filtro aplicado: ${category} - ${visibleCount} itens visíveis`);
-            
-            // Atualizar contador de itens visíveis
-            updateVisibleItemsCount(visibleCount);
-            
-            // Mostrar mensagem se não houver itens
-            showNoItemsMessage(category, visibleCount);
-        }
-        
-        function showAllMenuItems() {
-            const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => {
-                item.style.display = 'block';
-                item.style.animation = 'fadeInUp 0.5s ease-out';
-            });
-            
-            updateVisibleItemsCount(menuItems.length);
-            console.log('🌟 Todos os itens do menu visíveis');
-        }
-        
-        function updateVisibleItemsCount(count) {
-            // Atualizar título da seção com contador
-            const sectionTitle = document.querySelector('#menu h2');
-            if (sectionTitle) {
-                const baseText = 'Bolos e Salgados Tradicionais';
-                if (count < document.querySelectorAll('.menu-item').length) {
-                    sectionTitle.textContent = `${baseText} (${count} itens)`;
-                } else {
-                    sectionTitle.textContent = baseText;
-                }
-            }
-        }
-        
-        function showNoItemsMessage(category, count) {
-            const menuContainer = document.getElementById('menu-items');
-            const existingMessage = menuContainer.querySelector('.no-items-message');
-            
-            if (existingMessage) {
-                existingMessage.remove();
-            }
-            
-            if (count === 0) {
-                const message = document.createElement('div');
-                message.className = 'no-items-message col-span-full text-center py-12';
-                message.innerHTML = `
-                    <div class="max-w-md mx-auto">
-                        <div class="text-6xl mb-4">🍽️</div>
-                        <h3 class="text-xl font-semibold text-text-primary mb-2">
-                            Nenhum ${getCategoryDisplayName(category)} disponível
-                        </h3>
-                        <p class="text-text-secondary mb-4">
-                            Desculpe, não temos ${getCategoryDisplayName(category).toLowerCase()} disponíveis no momento.
-                        </p>
-                        <button onclick="showAllMenuItems()" class="btn-secondary">
-                            Ver Todos os Produtos
-                        </button>
-                    </div>
-                `;
-                menuContainer.appendChild(message);
-                
-                console.log(`📝 Mensagem de "sem itens" exibida para categoria: ${category}`);
-            }
-        }
-        
-        function getCategoryDisplayName(category) {
-            const categoryNames = {
-                'all': 'Produto',
-                'bolos': 'Bolo',
-                'salgados': 'Salgado',
-                'bebidas': 'Bebida'
-            };
-            return categoryNames[category] || 'Produto';
-        }
-
         // Navbar background on scroll
         window.addEventListener('scroll', function() {
             const nav = document.querySelector('nav');
@@ -2001,9 +2370,6 @@
                 nav.classList.remove('bg-white/98');
             }
         });
-
-        // ===== CÓDIGO DUPLICADO REMOVIDO =====
-        // As funções já estão definidas acima
     </script>
 </body>
 </html>

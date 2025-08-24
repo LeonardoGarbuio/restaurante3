@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu - Sabores Portugueses</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #c41e3a;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        
+        .filters {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            background-color: #e9ecef;
+            color: #495057;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn.active {
+            background-color: #c41e3a;
+            color: white;
+        }
+        
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .menu-item {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-5px);
+        }
+        
+        .menu-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+        
+        .menu-content {
+            padding: 20px;
+        }
+        
+        .menu-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 10px;
+        }
+        
+        .menu-description {
+            color: #6c757d;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        
+        .menu-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .menu-price {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #c41e3a;
+        }
+        
+        .add-btn {
+            background-color: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .add-btn:hover {
+            background-color: #e55a2b;
+        }
+        
+        .rating {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .label {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .label.popular {
+            background-color: #ff6b35;
+        }
+        
+        .label.traditional {
+            background-color: #28a745;
+        }
+        
+        .image-container {
+            position: relative;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #c41e3a;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background-color: #a01830;
+        }
+        
+        .header-actions {
+            margin-top: 20px;
+        }
+        
+        .cart-btn {
+            background-color: #ff6b35;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        .cart-btn:hover {
+            background-color: #e55a2b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        @media (max-width: 768px) {
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                gap: 10px;
+            }
+            
+            .filter-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../pages/landing_page.html" class="back-btn">← Voltar</a>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Menu Completo</h1>
+            <p>Descubra todos os nossos sabores tradicionais portugueses</p>
+            <div class="header-actions">
+                <button id="view-cart-btn" class="cart-btn">
+                    🛒 Ver Carrinho (<span id="cart-count">0</span>)
+                </button>
+            </div>
+        </div>
+        
+        <div class="filters">
+            <button class="filter-btn active" data-category="all">Todos</button>
+            <button class="filter-btn" data-category="bolos">Bolos</button>
+            <button class="filter-btn" data-category="salgados">Salgados</button>
+            <button class="filter-btn" data-category="bebidas">Bebidas</button>
+        </div>
+        
+        <div class="menu-grid">
+            <!-- Pastéis de Nata -->
+            <div class="menu-item" data-category="bolos">
+                <div class="image-container">
+                    <img src="https://images.pixabay.com/photos/2017/07/15/11/21/pasteis-de-nata-2505997_1280.jpg" alt="Pastéis de Nata" class="menu-image">
+                    <div class="label popular">Mais Popular</div>
+                    <div class="rating">⭐ 4.9</div>
+                </div>
+                <div class="menu-content">
+                    <h3 class="menu-title">Pastéis de Nata</h3>
+                    <p class="menu-description">Os famosos pastéis de nata portugueses com massa folhada crocante e creme suave.</p>
+                    <div class="menu-footer">
+                        <span class="menu-price">€1.50</span>
+                        <button class="add-btn">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coxinha de Frango -->
+            <div class="menu-item" data-category="salgados">
+                <div class="image-container">
+                    <img src="https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Coxinha de Frango" class="menu-image">
+                    <div class="rating">⭐ 4.7</div>
+                </div>
+                <div class="menu-content">
+                    <h3 class="menu-title">Coxinha de Frango</h3>
+                    <p class="menu-description">Salgado tradicional com recheio de frango desfiado e massa dourada crocante.</p>
+                    <div class="menu-footer">
+                        <span class="menu-price">€2.20</span>
+                        <button class="add-btn">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bolo de Arroz -->
+            <div class="menu-item" data-category="bolos">
+                <div class="image-container">
+                    <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Bolo de Arroz" class="menu-image">
+                    <div class="rating">⭐ 4.8</div>
+                </div>
+                <div class="menu-content">
+                    <h3 class="menu-title">Bolo de Arroz</h3>
+                    <p class="menu-description">Tradicional bolo português com textura única e sabor suave, perfeito para o lanche.</p>
+                    <div class="menu-footer">
+                        <span class="menu-price">€1.80</span>
+                        <button class="add-btn">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rissol de Camarão -->
+            <div class="menu-item" data-category="salgados">
+                <div class="image-container">
+                    <img src="https://images.pexels.com/photos/5560763/pexels-photo-5560763.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Rissol de Camarão" class="menu-image">
+                    <div class="rating">⭐ 4.6</div>
+                </div>
+                <div class="menu-content">
+                    <h3 class="menu-title">Rissol de Camarão</h3>
+                    <p class="menu-description">Delicioso rissol com recheio cremoso de camarão, empanado e frito na perfeição.</p>
+                    <div class="menu-footer">
+                        <span class="menu-price">€2.50</span>
+                        <button class="add-btn">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Galão -->
+            <div class="menu-item" data-category="bebidas">
+                <div class="image-container">
+                    <img src="https://images.pixabay.com/photos/2016/11/29/12/45/coffee-1869820_1280.jpg" alt="Galão" class="menu-image">
+                    <div class="rating">⭐ 4.5</div>
+                </div>
+                <div class="menu-content">
+                    <h3 class="menu-title">Galão</h3>
+                    <p class="menu-description">O tradicional café português com leite, servido em copo alto com espuma cremosa.</p>
+                    <div class="menu-footer">
+                        <span class="menu-price">€1.20</span>
+                        <button class="add-btn">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Queijada de Sintra -->
+            <div class="menu-item" data-category="bolos">
+                <div class="image-container">
+                    <img src="https://images.unsplash.com/photo-1571115764595-644a1f56a55c?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3" alt="Queijada de Sintra" class="menu-image">
+                    <div class="label traditional">Tradicional</div>
+                    <div class="rating">⭐ 4.7</div>
+                </div>
+                <div class="menu-content">
+                    <h3 class="menu-title">Queijada de Sintra</h3>
+                    <p class="menu-description">Autêntica queijada de Sintra com queijo fresco, ovos e açúcar, numa massa crocante.</p>
+                    <div class="menu-footer">
+                        <span class="menu-price">€1.90</span>
+                        <button class="add-btn">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal do Carrinho - MESMO ESTILO DA LANDING PAGE -->
+    <div id="cart-modal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <!-- Header do Carrinho -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-text-primary">🛒 Carrinho de Compras</h2>
+                        <button id="close-cart-modal" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+                    
+                    <!-- Lista de Itens do Carrinho -->
+                    <div id="cart-items" class="space-y-4 mb-6">
+                        <!-- Itens serão inseridos aqui dinamicamente -->
+                    </div>
+                    
+                    <!-- Mensagem de carrinho vazio -->
+                    <div id="empty-cart-message" class="text-center py-8 text-gray-500">
+                        <div class="text-6xl mb-4">🛒</div>
+                        <p class="text-lg">O seu carrinho está vazio</p>
+                        <p class="text-sm">Adicione alguns produtos deliciosos!</p>
+                    </div>
+                    
+                    <!-- Total e Botões -->
+                    <div id="cart-actions" class="border-t pt-4 hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xl font-bold text-text-primary">Total:</span>
+                            <span id="cart-total" class="text-2xl font-bold text-primary">€0.00</span>
+                        </div>
+                        
+                        <div class="flex space-x-4">
+                            <button id="clear-cart" class="flex-1 bg-gray-500 text-white py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors font-semibold">
+                                🗑️ Limpar Carrinho
+                            </button>
+                            <button id="checkout-btn" class="flex-1 bg-primary text-white py-3 px-4 rounded-lg hover:bg-primary-600 transition-colors font-semibold">
+                                💳 Finalizar Compra
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sistema de filtros simples
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const menuItems = document.querySelectorAll('.menu-item');
+        
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const category = button.getAttribute('data-category');
+                
+                // Atualizar botões ativos
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Filtrar itens
+                menuItems.forEach(item => {
+                    const itemCategory = item.getAttribute('data-category');
+                    if (category === 'all' || itemCategory === category) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        // Sistema de carrinho SIMPLES e FUNCIONAL
+        let cartItems = [];
+        
+        // Carregar carrinho do localStorage
+        function loadCart() {
+            const savedCart = localStorage.getItem('sabores_portugueses_cart');
+            if (savedCart) {
+                try {
+                    cartItems = JSON.parse(savedCart);
+                    console.log('🛒 Carrinho carregado:', cartItems);
+                } catch (e) {
+                    cartItems = [];
+                    console.warn('Erro ao carregar carrinho:', e);
+                }
+            }
+        }
+        
+        // Salvar carrinho no localStorage
+        function saveCart() {
+            localStorage.setItem('sabores_portugueses_cart', JSON.stringify(cartItems));
+            console.log('💾 Carrinho salvo:', cartItems);
+        }
+        
+        // Adicionar ao carrinho
+        function addToCart(productName, price) {
+            const existingItem = cartItems.find(item => item.name === productName);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cartItems.push({
+                    name: productName,
+                    price: parseFloat(price),
+                    quantity: 1,
+                    addedAt: new Date().toISOString()
+                });
+            }
+            
+            saveCart();
+            showNotification(`${productName} adicionado ao carrinho!`, 'success');
+            updateCartCount();
+        }
+        
+        // Atualizar contador do carrinho
+        function updateCartCount() {
+            const count = cartItems.reduce((total, item) => total + item.quantity, 0);
+            
+            // Atualizar título da página
+            if (count > 0) {
+                document.title = `(${count}) Menu - Sabores Portugueses`;
+            } else {
+                document.title = 'Menu - Sabores Portugueses';
+            }
+            
+            // Atualizar contador no botão
+            const cartCountElement = document.getElementById('cart-count');
+            if (cartCountElement) {
+                cartCountElement.textContent = count;
+            }
+        }
+        
+        // Mostrar notificação
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+        
+        // Botões de adicionar ao carrinho
+        const addButtons = document.querySelectorAll('.add-btn');
+        addButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const menuItem = button.closest('.menu-item');
+                const productName = menuItem.querySelector('.menu-title').textContent;
+                const priceText = menuItem.querySelector('.menu-price').textContent;
+                const price = priceText.replace('€', '');
+                
+                // Feedback visual
+                const originalText = button.textContent;
+                const originalColor = button.style.backgroundColor;
+                
+                button.textContent = 'Adicionando...';
+                button.disabled = true;
+                button.style.backgroundColor = '#6c757d';
+                
+                setTimeout(() => {
+                    // Adicionar ao carrinho
+                    addToCart(productName, price);
+                    
+                    // Feedback de sucesso
+                    button.textContent = 'Adicionado!';
+                    button.style.backgroundColor = '#28a745';
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.backgroundColor = originalColor;
+                        button.disabled = false;
+                    }, 1000);
+                }, 500);
+            });
+        });
+        
+        // Inicializar carrinho quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCart();
+            updateCartCount();
+            console.log('🛒 Carrinho carregado:', cartItems);
+        });
+        
+        // Mostrar modal do carrinho (MESMO ESTILO DA LANDING PAGE)
+        function showCartModal() {
+            const modal = document.getElementById('cart-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                updateCartDisplay();
+                console.log('🛒 Modal do carrinho aberto!');
+            }
+        }
+
+        // Fechar modal do carrinho
+        function closeCartModal() {
+            const modal = document.getElementById('cart-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                console.log('❌ Modal do carrinho fechado!');
+            }
+        }
+
+        // Atualizar display do carrinho
+        function updateCartDisplay() {
+            const cartItemsContainer = document.getElementById('cart-items');
+            const cartTotal = document.getElementById('cart-total');
+            const emptyMessage = document.getElementById('empty-cart-message');
+            const cartActions = document.getElementById('cart-actions');
+
+            if (cartItems.length === 0) {
+                emptyMessage.classList.remove('hidden');
+                cartActions.classList.add('hidden');
+                cartItemsContainer.innerHTML = '';
+                return;
+            }
+
+            emptyMessage.classList.add('hidden');
+            cartActions.classList.remove('hidden');
+
+            let total = 0;
+            cartItemsContainer.innerHTML = cartItems.map(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+
+                return `
+                    <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-800">${item.name}</h3>
+                            <p class="text-sm text-gray-600">€${item.price.toFixed(2)} x ${item.quantity}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2">
+                                <button onclick="updateQuantity('${item.name}', ${item.quantity - 1})" 
+                                        class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">-</button>
+                                <span class="w-8 text-center font-semibold">${item.quantity}</span>
+                                <button onclick="updateQuantity('${item.name}', ${item.quantity + 1})" 
+                                        class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">+</button>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-primary">€${itemTotal.toFixed(2)}</div>
+                                <button onclick="removeFromCart('${item.name}')" 
+                                        class="text-red-500 hover:text-red-700 text-sm transition-colors">Remover</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            cartTotal.textContent = `€${total.toFixed(2)}`;
+        }
+
+        // Atualizar quantidade de um item
+        function updateQuantity(productName, newQuantity) {
+            if (newQuantity <= 0) {
+                removeFromCart(productName);
+                return;
+            }
+
+            const item = cartItems.find(item => item.name === productName);
+            if (item) {
+                item.quantity = newQuantity;
+                saveCart();
+                updateCartCount();
+                updateCartDisplay();
+            }
+        }
+
+        // Remover item do carrinho
+        function removeFromCart(productName) {
+            cartItems = cartItems.filter(item => item.name !== productName);
+            saveCart();
+            updateCartCount();
+            updateCartDisplay();
+            showNotification(`${productName} removido do carrinho!`, 'info');
+        }
+        
+        // Limpar carrinho
+        function clearCart() {
+            cartItems = [];
+            saveCart();
+            updateCartCount();
+            updateCartDisplay();
+            showNotification('Carrinho limpo!', 'info');
+        }
+        
+        // Finalizar compra
+        function checkout() {
+            if (cartItems.length === 0) {
+                showNotification('Carrinho vazio!', 'error');
+                return;
+            }
+            
+            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            alert(`🎉 Encomenda finalizada!\n\nTotal: €${total.toFixed(2)}\nItens: ${cartItems.length}\n\nObrigado pela sua encomenda!`);
+            
+            // Limpar carrinho após finalizar
+            clearCart();
+            closeCartModal();
+        }
+        
+        // Configuração dos botões quando carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar botão "Ver Carrinho"
+            const viewCartBtn = document.getElementById('view-cart-btn');
+            if (viewCartBtn) {
+                viewCartBtn.addEventListener('click', showCartModal);
+                console.log('✅ Botão Ver Carrinho configurado!');
+            }
+            
+            // Configurar botão de fechar modal
+            const closeCartBtn = document.getElementById('close-cart-modal');
+            if (closeCartBtn) {
+                closeCartBtn.addEventListener('click', closeCartModal);
+                console.log('✅ Botão fechar modal configurado!');
+            }
+            
+            // Configurar botão de limpar carrinho
+            const clearCartBtn = document.getElementById('clear-cart');
+            if (clearCartBtn) {
+                clearCartBtn.addEventListener('click', clearCart);
+                console.log('✅ Botão limpar carrinho configurado!');
+            }
+            
+            // Configurar botão de checkout
+            const checkoutBtn = document.getElementById('checkout-btn');
+            if (checkoutBtn) {
+                checkoutBtn.addEventListener('click', checkout);
+                console.log('✅ Botão checkout configurado!');
+            }
+            
+            // Fechar modal ao clicar fora dele
+            const cartModal = document.getElementById('cart-modal');
+            if (cartModal) {
+                cartModal.addEventListener('click', function(e) {
+                    if (e.target === cartModal) {
+                        closeCartModal();
+                    }
+                });
+                console.log('✅ Modal configurado para fechar ao clicar fora!');
+            }
+        });
+    </script>
+</body>
+</html>
