@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
@@ -36,6 +37,31 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Configuração do Multer para upload de arquivos
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/uploads/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas imagens são permitidas!'), false);
+    }
+  }
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -58,6 +84,11 @@ app.use('/api/cart', require('./routes/cart'));
 app.use('/api/delivery', require('./routes/delivery'));
 app.use('/api/loyalty', require('./routes/loyalty'));
 app.use('/api/contact', require('./routes/contact'));
+
+// Novas rotas de produção
+app.use('/api/admin', require('./routes/admin-auth'));
+app.use('/api/admin', require('./routes/admin-products'));
+app.use('/api/payments', require('./routes/payments'));
 
 // Rota principal
 app.get('/', (req, res) => {
@@ -83,6 +114,17 @@ app.get('/teste-sincronizacao', (req, res) => {
 app.get('/teste-persistencia', (req, res) => {
   res.sendFile(__dirname + '/pages/teste_persistencia.html');
 });
+
+// Rotas administrativas
+app.get('/admin', (req, res) => {
+  res.sendFile(__dirname + '/pages/admin-login.html');
+});
+
+app.get('/admin-panel', (req, res) => {
+  res.sendFile(__dirname + '/pages/admin-panel.html');
+});
+
+
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {

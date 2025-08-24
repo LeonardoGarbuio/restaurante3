@@ -1,449 +1,174 @@
-# Sabores Portugueses - Backend API
+# 🥖 Sabores Portugueses - Sistema de Padaria
 
-Backend completo para o sistema de padaria portuguesa "Sabores Portugueses", incluindo sistema de pedidos online, gestão de produtos, sistema de fidelidade, entregas e gestão de utilizadores.
+Sistema completo de e-commerce para padaria portuguesa com gestão administrativa, carrinho de compras e produtos em destaque.
 
 ## 🚀 Funcionalidades
 
-- **Sistema de Autenticação**: Registro, login, JWT tokens
-- **Gestão de Utilizadores**: Perfis, roles (cliente, staff, admin, motorista)
-- **Catálogo de Produtos**: Gestão de produtos, categorias, avaliações
-- **Sistema de Pedidos**: Carrinho de compras, checkout, histórico
-- **Sistema de Fidelidade**: Pontos, tiers, recompensas, metas
-- **Gestão de Entregas**: Rastreamento em tempo real, atribuição de motoristas
-- **Sistema de Contacto**: Formulários, gestão de mensagens
-- **API RESTful**: Endpoints bem documentados e seguros
+### **Frontend**
+- ✅ Landing page responsiva com produtos em destaque
+- ✅ Menu completo com filtros por categoria
+- ✅ Carrinho de compras sincronizado
+- ✅ Sistema de navegação intuitivo
+- ✅ Design moderno e responsivo
+
+### **Backend**
+- ✅ API RESTful completa
+- ✅ Sistema de autenticação JWT
+- ✅ Gestão de produtos (CRUD)
+- ✅ Upload de imagens
+- ✅ Banco de dados SQLite
+- ✅ Painel administrativo
+
+### **Administração**
+- ✅ Login seguro
+- ✅ Gestão de produtos
+- ✅ Sistema de destaque (máximo 6 produtos)
+- ✅ Upload e gestão de imagens
+- ✅ Reordenação de produtos
+- ✅ Dashboard com estatísticas
 
 ## 🛠️ Tecnologias
 
-- **Node.js** - Runtime JavaScript
-- **Express.js** - Framework web
-- **SQLite** - Base de dados relacional
-- **JWT** - Autenticação baseada em tokens
-- **bcryptjs** - Hash de senhas
-- **express-validator** - Validação de dados
-- **Helmet** - Segurança HTTP
-- **CORS** - Cross-Origin Resource Sharing
+- **Backend**: Node.js, Express.js
+- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
+- **Banco de Dados**: SQLite3
+- **Autenticação**: JWT (JSON Web Tokens)
+- **Upload**: Multer
+- **Estilização**: CSS Custom + Tailwind CSS
 
-## 📁 Estrutura do Projeto
+## 📦 Instalação
 
-```
-├── config/          # Configuração da base de dados
-│   └── database.js  # Configuração SQLite
-├── routes/          # Rotas da API
-│   ├── auth.js      # Autenticação
-│   ├── users.js     # Gestão de utilizadores
-│   ├── products.js  # Gestão de produtos
-│   ├── orders.js    # Gestão de pedidos
-│   ├── cart.js      # Gestão de carrinho
-│   ├── delivery.js  # Gestão de entregas
-│   ├── contact.js   # Gestão de contactos
-│   └── loyalty.js   # Sistema de fidelidade
-├── middleware/      # Middleware personalizado
-│   ├── auth.js      # Autenticação e autorização
-│   └── validation.js # Validação de dados
-├── server.js        # Servidor principal
-├── .env             # Variáveis de ambiente
-└── package.json     # Dependências e scripts
-```
+### **Pré-requisitos**
+- Node.js (versão 14 ou superior)
+- npm ou yarn
 
-## 🚀 Instalação
+### **Passos**
 
-1. **Clonar o repositório**
+1. **Clone o repositório**
 ```bash
-git clone <repository-url>
+git clone [URL_DO_REPOSITORIO]
 cd sabores-portugueses
 ```
 
-2. **Instalar dependências**
+2. **Instale as dependências**
 ```bash
 npm install
 ```
 
-3. **Configurar variáveis de ambiente**
+3. **Configure as variáveis de ambiente**
 ```bash
+# Crie um arquivo .env na raiz do projeto
 cp .env.example .env
-# Editar .env com suas configurações
+# Edite o arquivo .env com suas configurações
 ```
 
-4. **Configurar SQLite**
-- SQLite é incluído por padrão e não requer instalação adicional
-- A base de dados será criada automaticamente no primeiro arranque
-
-5. **Executar o servidor**
+4. **Inicie o servidor**
 ```bash
-# Desenvolvimento
-npm run dev
-
-# Produção
 npm start
+# ou
+node server.js
 ```
+
+5. **Acesse a aplicação**
+- Frontend: http://localhost:5000
+- API: http://localhost:5000/api
 
 ## 🔧 Configuração
 
-### Variáveis de Ambiente (.env)
+### **Variáveis de Ambiente**
+Crie um arquivo `.env` na raiz do projeto:
 
 ```env
 # Servidor
 PORT=5000
 NODE_ENV=development
 
-# Base de Dados
-# SQLite é configurado automaticamente, não são necessárias variáveis adicionais
-
 # JWT
 JWT_SECRET=sua_chave_secreta_aqui
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_IN=24h
 
-# Email (Nodemailer)
-EMAIL_SERVICE=gmail
-EMAIL_USER=seu_email@gmail.com
-EMAIL_PASS=sua_senha_app
+# Banco de Dados
+DB_PATH=./data/padaria.db
 
-# Stripe (Pagamentos)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-# Google Maps
-GOOGLE_MAPS_API_KEY=sua_chave_api_aqui
-
-# WhatsApp Business
-WHATSAPP_API_KEY=sua_chave_api_aqui
-WHATSAPP_PHONE_NUMBER=+351123456789
-
-# Upload de Ficheiros
+# Upload
+UPLOAD_PATH=./public/uploads
 MAX_FILE_SIZE=5242880
-ALLOWED_FILE_TYPES=image/jpeg,image/png,image/webp
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
 ```
 
-## 📚 Documentação da API
-
-### Base URL
+### **Estrutura de Pastas**
 ```
-http://localhost:5000/api
-```
-
-### Autenticação
-
-#### Registro
-```http
-POST /auth/register
-Content-Type: application/json
-
-{
-  "name": "João Silva",
-  "email": "joao@email.com",
-  "phone": "+351123456789",
-  "password": "senha123",
-  "address": {
-    "street": "Rua das Flores",
-    "city": "Lisboa",
-    "postalCode": "1000-001",
-    "country": "Portugal"
-  }
-}
-```
-
-#### Login
-```http
-POST /auth/login
-Content-Type: application/json
-
-{
-  "email": "joao@email.com",
-  "password": "senha123"
-}
+sabores-portugueses/
+├── config/
+│   ├── database.js
+│   └── admin.js
+├── routes/
+│   ├── admin-auth.js
+│   ├── admin-products.js
+│   └── delivery.js
+├── middleware/
+│   └── admin-auth.js
+├── pages/
+│   ├── landing_page.html
+│   ├── menu_simples.html
+│   ├── admin-login.html
+│   └── admin-panel.html
+├── css/
+│   ├── main.css
+│   └── admin.css
+├── public/
+│   └── uploads/
+├── data/
+├── server.js
+└── package.json
 ```
 
-### Produtos
+## 🎯 Como Usar
 
-#### Listar Produtos
-```http
-GET /products?page=1&limit=20&category=pastries&featured=true
-Authorization: Bearer <token>
-```
+### **Acesso Administrativo**
+1. Acesse a landing page
+2. Role até o footer
+3. Clique no ícone ⚙️ (engrenagem)
+4. Faça login com suas credenciais
 
-#### Obter Produto
-```http
-GET /products/:id
-Authorization: Bearer <token>
-```
+### **Gestão de Produtos**
+- **Adicionar Produto**: Preencha o formulário e faça upload da imagem
+- **Editar Produto**: Clique em "Editar" na tabela de produtos
+- **Produtos em Destaque**: Marque até 6 produtos para aparecer na landing page
+- **Reordenar**: Use as setas ↑↓ para reordenar produtos em destaque
 
-#### Criar Produto (Admin/Staff)
-```http
-POST /products
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Pastel de Nata",
-  "description": "Pastel de nata tradicional português",
-  "category": "pastries",
-  "price": 1.50,
-  "ingredients": ["massa folhada", "natas", "açúcar"],
-  "isAvailable": true
-}
-```
-
-### Pedidos
-
-#### Criar Pedido
-```http
-POST /orders/create
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "deliveryAddress": {
-    "street": "Rua das Flores",
-    "city": "Lisboa",
-    "postalCode": "1000-001"
-  },
-  "deliveryInstructions": "Entregar na portaria",
-  "paymentMethod": "card"
-}
-```
-
-#### Listar Pedidos do Utilizador
-```http
-GET /orders
-Authorization: Bearer <token>
-```
-
-### Carrinho
-
-#### Adicionar Item
-```http
-POST /cart/add-item
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "productId": "64f1a2b3c4d5e6f7g8h9i0j1",
-  "quantity": 2,
-  "specialInstructions": "Sem açúcar"
-}
-```
-
-#### Obter Carrinho
-```http
-GET /cart
-Authorization: Bearer <token>
-```
-
-### Fidelidade
-
-#### Obter Perfil de Fidelidade
-```http
-GET /loyalty/profile
-Authorization: Bearer <token>
-```
-
-#### Usar Pontos
-```http
-POST /loyalty/use-points
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "points": 100,
-  "description": "Desconto em pedido"
-}
-```
-
-### Entregas
-
-#### Rastrear Entrega
-```http
-GET /delivery/tracking/:deliveryId
-Authorization: Bearer <token>
-```
-
-#### Atualizar Localização (Motorista)
-```http
-PUT /delivery/driver/:deliveryId/update-location
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "latitude": 38.7223,
-  "longitude": -9.1393,
-  "address": "Rua Augusta, Lisboa"
-}
-```
-
-### Utilizadores
-
-#### Obter Perfil
-```http
-GET /users/profile
-Authorization: Bearer <token>
-```
-
-#### Atualizar Perfil
-```http
-PUT /users/profile
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "João Silva Santos",
-  "phone": "+351987654321"
-}
-```
-
-### Contacto
-
-#### Enviar Mensagem
-```http
-POST /contact
-Content-Type: application/json
-
-{
-  "name": "Maria Santos",
-  "email": "maria@email.com",
-  "subject": "Dúvida sobre encomendas",
-  "message": "Gostaria de saber se fazem entregas aos domingos."
-}
-```
-
-## 🔐 Autenticação e Autorização
-
-### Roles de Utilizador
-- **customer**: Cliente (padrão)
-- **staff**: Funcionário da padaria
-- **admin**: Administrador do sistema
-- **driver**: Motorista de entrega
-
-### Middleware de Autorização
-- `authenticateToken`: Verifica JWT válido
-- `requireAdmin`: Apenas administradores
-- `requireStaff`: Staff e administradores
-- `requireDriver`: Motoristas, staff e administradores
-- `requireOwnershipOrAdmin`: Dono do recurso ou admin
-
-## 📊 Modelos de Dados
-
-### User
-- Informações pessoais (nome, email, telefone)
-- Endereço de entrega
-- Role e status de atividade
-- Sistema de fidelidade integrado
-- Preferências e configurações
-
-### Product
-- Detalhes do produto (nome, descrição, preço)
-- Categorias e tags
-- Informações nutricionais e ingredientes
-- Imagens e disponibilidade
-- Sistema de avaliações
-
-### Order
-- Itens do pedido e quantidades
-- Informações de entrega e pagamento
-- Histórico de status
-- Integração com sistema de fidelidade
-
-### Cart
-- Itens selecionados
-- Cálculos automáticos (subtotal, taxas, descontos)
-- Expiração automática
-- Preferências de entrega
-
-### Delivery
-- Rastreamento em tempo real
-- Atribuição de motoristas
-- Histórico de status
-- Cálculo de distâncias e tempos
-
-### Loyalty
-- Sistema de pontos
-- Tiers e benefícios
-- Histórico de transações
-- Metas e recompensas
-
-### Contact
-- Gestão de mensagens
-- Sistema de prioridades
-- Atribuição a staff
-- Histórico de respostas
-
-## 🚀 Scripts Disponíveis
-
-```bash
-# Desenvolvimento
-npm run dev          # Servidor com nodemon
-
-# Produção
-npm start            # Servidor de produção
-npm run build        # Build do projeto
-
-# CSS
-npm run build:css    # Build do CSS
-npm run watch:css    # Watch do CSS
-```
+### **Carrinho de Compras**
+- Adicione produtos ao carrinho
+- Visualize itens no modal do carrinho
+- Quantidades são sincronizadas entre páginas
+- Dados persistem no localStorage
 
 ## 🔒 Segurança
 
-- **Helmet**: Headers de segurança HTTP
-- **Rate Limiting**: Proteção contra ataques de força bruta
-- **CORS**: Configuração segura de Cross-Origin
-- **JWT**: Tokens seguros com expiração
-- **bcryptjs**: Hash seguro de senhas
-- **Validação**: Sanitização de dados de entrada
+- Autenticação JWT com expiração
+- Validação de entrada de dados
+- Sanitização de uploads
+- Proteção contra XSS básica
+- Rotas administrativas protegidas
 
-## 📱 Integrações
+## 📱 Responsividade
 
-- **Email**: Nodemailer para notificações
-- **Pagamentos**: Stripe para processamento de cartões
-- **Maps**: Google Maps API para localização
-- **WhatsApp**: API Business para comunicação
-- **Upload**: Multer para ficheiros
-
-## 🧪 Testes
-
-```bash
-# Executar testes (quando implementados)
-npm test
-
-# Testes com coverage
-npm run test:coverage
-```
-
-## 📈 Monitorização
-
-- Logs estruturados
-- Tratamento de erros centralizado
-- Métricas de performance
-- Health checks
+O sistema é totalmente responsivo e funciona em:
+- 📱 Dispositivos móveis
+- 💻 Tablets
+- 🖥️ Desktops
 
 ## 🚀 Deploy
 
-### Produção
+### **Local**
 ```bash
-# Build
-npm run build
-
-# Start
 npm start
-
-# PM2 (recomendado)
-pm2 start server.js --name "sabores-portugueses"
 ```
 
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 5000
-CMD ["npm", "start"]
-```
+### **Produção**
+1. Configure variáveis de ambiente para produção
+2. Use PM2 ou similar para gerenciar processos
+3. Configure HTTPS
+4. Configure backup do banco de dados
 
 ## 🤝 Contribuição
 
@@ -455,18 +180,12 @@ CMD ["npm", "start"]
 
 ## 📄 Licença
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
 ## 📞 Suporte
 
-Para suporte e dúvidas:
-- Email: suporte@saboresportugueses.pt
-- WhatsApp: +351123456789
-- Documentação: [Wiki do Projeto](wiki-url)
+Para suporte, entre em contato através dos canais oficiais da padaria.
 
-## 🙏 Agradecimentos
+---
 
-- Equipa de desenvolvimento
-- Comunidade open source
-- Clientes e utilizadores
-- Padaria "Sabores Portugueses"
+**Desenvolvido com ❤️ para Sabores Portugueses**

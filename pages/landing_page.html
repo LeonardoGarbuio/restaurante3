@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt" class="scroll-smooth">
 <head>
@@ -7,6 +8,17 @@
     <meta name="description" content="Authentic Portuguese bakery offering traditional bolos and salgados with delivery and dine-in options. Family recipes since 2018." />
     <link rel="stylesheet" href="../css/main.css" />
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥖</text></svg>" />
+    
+    <style>
+        /* Estilo simples para os botões de adicionar */
+        .add-to-cart-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .add-to-cart-btn:hover {
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body class="font-open-sans bg-background text-text-primary">
     <!-- Navigation Header -->
@@ -1076,6 +1088,7 @@
                 <div class="flex space-x-6 mt-4 md:mt-0">
                     <a href="javascript:void(0)" class="text-gray-300 hover:text-accent text-sm transition-colors">Política de Privacidade</a>
                     <a href="javascript:void(0)" class="text-gray-300 hover:text-accent text-sm transition-colors">Termos de Serviço</a>
+                     <a href="/pages/admin-login.html" class="text-gray-400 hover:text-gray-200 text-xs transition-colors opacity-50 hover:opacity-100" title="Área Administrativa">⚙️</a>
                 </div>
             </div>
         </div>
@@ -1151,42 +1164,88 @@
         
         // Carregar carrinho do localStorage
         function loadCart() {
-            const savedCart = localStorage.getItem('sabores_portugueses_cart');
-            if (savedCart) {
-                try {
+            try {
+                const savedCart = localStorage.getItem('sabores_portugueses_cart');
+                console.log('🔍 Tentando carregar carrinho do localStorage:', savedCart);
+                
+                if (savedCart && savedCart !== 'null' && savedCart !== 'undefined') {
                     cartItems = JSON.parse(savedCart);
-                    console.log('🛒 Carrinho carregado:', cartItems);
-                } catch (e) {
+                    console.log('✅ Carrinho carregado com sucesso:', cartItems);
+                } else {
                     cartItems = [];
-                    console.warn('Erro ao carregar carrinho:', e);
+                    console.log('🛒 Carrinho vazio, inicializando...');
                 }
+            } catch (e) {
+                cartItems = [];
+                console.error('❌ Erro ao carregar carrinho:', e);
+                console.log('🛒 Usando carrinho em memória...');
             }
         }
 
         // Salvar carrinho no localStorage
         function saveCart() {
-            localStorage.setItem('sabores_portugueses_cart', JSON.stringify(cartItems));
-            console.log('💾 Carrinho salvo:', cartItems);
+            try {
+                const cartData = JSON.stringify(cartItems);
+                localStorage.setItem('sabores_portugueses_cart', cartData);
+                console.log('💾 Carrinho salvo com sucesso:', cartItems);
+                console.log('💾 Dados salvos no localStorage:', cartData);
+                
+                // Verificar se salvou corretamente
+                const savedData = localStorage.getItem('sabores_portugueses_cart');
+                if (savedData === cartData) {
+                    console.log('✅ Verificação: dados salvos corretamente!');
+                } else {
+                    console.warn('⚠️ Verificação: dados não salvos corretamente!');
+                }
+            } catch (e) {
+                console.error('❌ Erro ao salvar carrinho:', e);
+                console.log('💾 Carrinho mantido apenas em memória...');
+            }
         }
 
         // Adicionar ao carrinho
-        function addToCart(productName, price) {
-            const existingItem = cartItems.find(item => item.name === productName);
+        function addToCart(productName, price, button = null) {
+            // Encontrar o botão que foi clicado
+            if (!button) button = event.target;
+            const originalText = button.textContent;
             
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cartItems.push({
-                    name: productName,
-                    price: parseFloat(price),
-                    quantity: 1,
-                    addedAt: new Date().toISOString()
-                });
-            }
+            // Animação simples: "Adicionando..." → "Adicionado!"
+            button.textContent = 'Adicionando...';
+            button.disabled = true;
+            button.style.backgroundColor = '#f97316'; // Laranja
             
-            saveCart();
-            updateCartCount();
-            showNotification(`${productName} adicionado ao carrinho!`, 'success');
+            setTimeout(() => {
+                // Adicionar ao carrinho
+                const existingItem = cartItems.find(item => item.name === productName);
+                
+                if (existingItem) {
+                    existingItem.quantity += 1;
+                } else {
+                    cartItems.push({
+                        name: productName,
+                        price: parseFloat(price),
+                        quantity: 1,
+                        addedAt: new Date().toISOString()
+                    });
+                }
+                
+                // Salvar e atualizar
+                saveCart();
+                updateCartCount();
+                
+                // Mostrar "Adicionado!" em verde
+                button.textContent = 'Adicionado!';
+                button.style.backgroundColor = '#10b981';
+                
+                setTimeout(() => {
+                    // Voltar ao normal
+                    button.textContent = originalText;
+                    button.disabled = false;
+                    button.style.backgroundColor = '';
+                }, 1000);
+                
+                showNotification(`${productName} adicionado ao carrinho!`, 'success');
+            }, 500);
         }
 
         // Atualizar contador do carrinho
@@ -1341,6 +1400,35 @@
             closeCartModal();
         }
 
+        // Função para configurar botões de adicionar ao carrinho
+        function setupAddToCartButtons() {
+            // Remover event listeners antigos para evitar duplicação
+            const existingButtons = document.querySelectorAll('.add-to-cart-btn');
+            existingButtons.forEach(button => {
+                button.replaceWith(button.cloneNode(true));
+            });
+            
+            // Configurar novos botões
+            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
+            addToCartButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const productName = this.getAttribute('data-product');
+                    const productPrice = this.getAttribute('data-price');
+                    
+                    if (productName && productPrice) {
+                        addToCart(productName, productPrice, this);
+                    } else {
+                        console.error('❌ Produto sem nome ou preço definido');
+                    }
+                });
+            });
+            
+            console.log(`✅ ${addToCartButtons.length} botões "Adicionar ao Carrinho" configurados!`);
+        }
+
         // Configuração dos botões quando a página carregar
         document.addEventListener('DOMContentLoaded', function() {
             console.log('✅ DOM carregado! Configurando sistema...');
@@ -1389,88 +1477,28 @@
             }
             
             // Configurar botões "Adicionar ao Carrinho" 
-            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
-            addToCartButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const productName = this.getAttribute('data-product');
-                    const productPrice = this.getAttribute('data-price');
-                    
-                    if (productName && productPrice) {
-                        // Feedback visual
-                        const originalText = this.textContent;
-                        this.textContent = 'Adicionando...';
-                        this.disabled = true;
-                        
-                        setTimeout(() => {
-                            addToCart(productName, productPrice);
-                            this.textContent = 'Adicionado!';
-                            this.classList.add('bg-green-500');
-                            
-                            setTimeout(() => {
-                                this.textContent = originalText;
-                                this.classList.remove('bg-green-500');
-                                this.disabled = false;
-                            }, 1000);
-                        }, 300);
-                    } else {
-                        console.error('❌ Produto sem nome ou preço definido');
+            setupAddToCartButtons();
+            
+            // Inicializar filtros do menu
+            initializeMenuFilters();
+            console.log('✅ Filtros do menu inicializados!');
+            
+            // Carregar produtos em destaque
+            loadFeaturedProducts();
+            console.log('✅ Produtos em destaque carregados!');
+            
+            // Configurar menu mobile
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            if (mobileBtn) {
+                mobileBtn.addEventListener('click', function() {
+                    const mobileMenu = document.getElementById('mobile-menu');
+                    if (mobileMenu) {
+                        mobileMenu.classList.toggle('hidden');
+                        console.log('📱 Menu mobile alternado!');
                     }
                 });
-            });
-            
-            console.log(`✅ ${addToCartButtons.length} botões "Adicionar ao Carrinho" configurados!`);
+            }
         });
-        
-        // ===== FUNÇÕES DE UTILIDADE =====
-        function showCartModal() {
-            const modal = document.getElementById('cart-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                renderCartItems();
-                console.log('🛒 Modal do carrinho aberto!');
-            }
-        }
-        
-        function closeCartModal() {
-            const modal = document.getElementById('cart-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                console.log('❌ Modal do carrinho fechado!');
-            }
-        }
-        
-        function renderCartItems() {
-            // Esta função agora usa updateCartDisplay
-            updateCartDisplay();
-        }
-        
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                type === 'success' ? 'bg-green-500 text-white' : 
-                type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
-            }`;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-        
-        function showFullMenu() {
-            window.location.href = 'menu_simples.html';
-        }
-        
-        function initializeUI() {
-            document.getElementById('cart-btn').classList.remove('hidden');
-            if (cartManager) {
-                cartManager.updateCartCount();
-            }
-        }
-        
-        // ===== INICIALIZAÇÃO REMOVIDA - JÁ CONFIGURADA ACIMA =====
         
         // ===== FUNÇÕES UTILITÁRIAS =====
         function scrollToSection(sectionId) {
@@ -1485,6 +1513,11 @@
                 });
             }
         }
+        
+        // Função para mostrar menu completo
+        function showFullMenu() {
+            window.location.href = '/pages/menu_simples.html';
+        }
 
         window.addEventListener('scroll', function() {
             const nav = document.querySelector('nav');
@@ -1497,189 +1530,87 @@
             }
         });
 
-        // Funções já definidas acima
-            const cartItemsContainer = document.getElementById('cart-items');
-            const emptyMessage = document.getElementById('empty-cart-message');
-            const cartActions = document.getElementById('cart-actions');
-            const cartTotal = document.getElementById('cart-total');
+
+        
+
+
+
+
+        // ===== SISTEMA DE PRODUTOS DINÂMICOS =====
+        async function loadFeaturedProducts() {
+            try {
+                console.log('🎯 Carregando produtos em destaque...');
+                const response = await fetch('/api/admin/products');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Filtrar apenas produtos em destaque e ordenar
+                    const featuredProducts = data.data
+                        .filter(product => product.is_featured)
+                        .sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999))
+                        .slice(0, 6); // Máximo 6 produtos
+                    
+                    console.log(`✅ ${featuredProducts.length} produtos em destaque carregados`);
+                    
+                    // Renderizar produtos na landing page
+                    renderFeaturedProducts(featuredProducts);
+                } else {
+                    console.error('❌ Erro ao carregar produtos:', data.message);
+                    // Manter produtos estáticos como fallback
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar produtos em destaque:', error);
+                // Manter produtos estáticos como fallback
+            }
+        }
+
+        function renderFeaturedProducts(products) {
+            const menuItemsContainer = document.getElementById('menu-items');
+            if (!menuItemsContainer) return;
             
-            if (cartItems.length === 0) {
-                // Carrinho vazio
-                if (cartItemsContainer) cartItemsContainer.innerHTML = '';
-                if (emptyMessage) emptyMessage.classList.remove('hidden');
-                if (cartActions) cartActions.classList.add('hidden');
-                if (cartTotal) cartTotal.textContent = '€0.00';
+            if (products.length === 0) {
+                menuItemsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-gray-500">
+                        <div class="text-6xl mb-4">🍽️</div>
+                        <h3 class="text-xl font-semibold text-text-primary mb-2">Nenhum produto em destaque</h3>
+                        <p class="text-text-secondary">Adicione produtos em destaque no painel admin para aparecerem aqui.</p>
+                    </div>
+                `;
                 return;
             }
             
-            // Carrinho com itens
-            if (emptyMessage) emptyMessage.classList.add('hidden');
-            if (cartActions) cartActions.classList.remove('hidden');
-            
-            // Calcular total
-            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            if (cartTotal) cartTotal.textContent = `€${total.toFixed(2)}`;
-            
-            // Renderizar itens
-            if (cartItemsContainer) {
-                cartItemsContainer.innerHTML = cartItems.map(item => `
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-text-primary">${item.name}</h4>
-                            <p class="text-sm text-text-secondary">€${item.price.toFixed(2)} cada</p>
+            menuItemsContainer.innerHTML = products.map(product => `
+                <div class="card-food menu-item" data-category="${product.category_name?.toLowerCase() || 'outros'}">
+                    <div class="relative overflow-hidden">
+                        <img src="${product.image_url || 'https://images.unsplash.com/photo-1571115764595-644a1f56a55c?q=80&w=800&auto=format&fit=crop'}" 
+                             alt="${product.name}" 
+                             class="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                             onerror="this.src='https://images.unsplash.com/photo-1571115764595-644a1f56a55c?q=80&w=800&auto=format&fit=crop'; this.onerror=null;" />
+                        <div class="absolute top-4 right-4">
+                            <div class="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-full">
+                                <span class="text-warning text-sm">⭐</span>
+                                <span class="text-xs font-semibold">4.8</span>
                             </div>
-                        <div class="flex items-center space-x-3">
-                            <div class="flex items-center space-x-2">
-                                <button onclick="updateQuantity('${item.name}', -1)" class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">-</button>
-                                <span class="w-8 text-center font-semibold">${item.quantity}</span>
-                                <button onclick="updateQuantity('${item.name}', 1)" class="w-8 h-8 bg-gray-300 hover:bg-gray-400 rounded-full flex items-center justify-center text-gray-700 font-bold transition-colors">+</button>
-                            </div>
-                            <div class="text-right min-w-[80px]">
-                                <p class="font-semibold text-primary">€${(item.price * item.quantity).toFixed(2)}</p>
                         </div>
-                            <button onclick="removeFromCart('${item.name}')" class="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white font-bold transition-colors transition-all">×</button>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-playfair text-xl font-semibold text-text-primary mb-2">${product.name}</h3>
+                        <p class="text-text-secondary text-sm mb-4">
+                            ${product.description || 'Produto tradicional português feito com ingredientes frescos.'}
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-montserrat font-bold text-lg text-primary">€${product.price}</span>
+                            <button class="add-to-cart-btn bg-accent hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors" 
+                                    data-product="${product.name}" data-price="${product.price}">
+                                Adicionar
+                            </button>
+                        </div>
                     </div>
                 </div>
-                `).join('');
-            }
-        }
-        
-        // Função para atualizar quantidade
-        function updateQuantity(productName, change) {
-            const item = cartItems.find(item => item.name === productName);
-            if (item) {
-                item.quantity += change;
-                if (item.quantity <= 0) {
-                    removeFromCart(productName);
-                    } else {
-                    updateCartCount();
-                    renderCartItems();
-                }
-            }
-        }
-        
-        // Função para remover do carrinho
-        function removeFromCart(productName) {
-            cartItems = cartItems.filter(item => item.name !== productName);
-            updateCartCount();
-            renderCartItems();
-            showNotification(`${productName} removido do carrinho`, 'info');
-        }
-        
-        // Função para limpar carrinho
-        function clearCart() {
-            cartItems = [];
-            updateCartCount();
-            renderCartItems();
-            showNotification('Carrinho limpo!', 'info');
-        }
-        
-        // Função para finalizar compra
-        function checkout() {
-            if (cartItems.length === 0) {
-                showNotification('Carrinho vazio!', 'error');
-                return;
-            }
+            `).join('');
             
-            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const message = `🛒 **Compra Finalizada!**\n\n` +
-                `Total: €${total.toFixed(2)}\n` +
-                `Itens: ${cartItems.length}\n\n` +
-                `Obrigado pela sua encomenda! 🎉`;
-            
-            alert(message);
-            
-            // Limpar carrinho após compra
-            cartItems = [];
-            updateCartCount();
-            closeCartModal();
-            showNotification('Compra realizada com sucesso!', 'success');
-        }
-        
-        // Função para adicionar ao carrinho
-        function addToCart(productName, price) {
-            // Adicionar diretamente ao carrinho (sem login)
-            const existingItem = cartItems.find(item => item.name === productName);
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cartItems.push({
-                    name: productName,
-                    price: parseFloat(price),
-                    quantity: 1
-                });
-            }
-            
-            // Atualizar contador do carrinho
-            updateCartCount();
-            
-            // Feedback visual
-            console.log(`🛒 ${productName} adicionado ao carrinho!`);
-            
-            // Mostrar notificação
-            showNotification(`${productName} adicionado ao carrinho!`, 'success');
-        }
-        
-        // Função para mostrar notificação
-        function showNotification(message, type = 'info') {
-            // Criar elemento de notificação
-            const notification = document.createElement('div');
-            notification.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                type === 'success' ? 'bg-green-500 text-white' : 
-                type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
-            }`;
-            notification.textContent = message;
-            
-            // Adicionar ao DOM
-            document.body.appendChild(notification);
-            
-            // Remover após 3 segundos
-                    setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-        
-        // Função para atualizar contador do carrinho
-        function updateCartCount() {
-            const count = cartItems.reduce((total, item) => total + item.quantity, 0);
-            const cartCountElement = document.getElementById('cart-count');
-            const cartCountMobileElement = document.getElementById('cart-count-mobile');
-            
-            if (cartCountElement) {
-                cartCountElement.textContent = count;
-            }
-            if (cartCountMobileElement) {
-                cartCountMobileElement.textContent = count;
-            }
-        }
-        
-        // Função para mostrar menu completo
-        function showFullMenu() {
-            // Redirecionar para a página do menu completo
-            window.location.href = '/menu-completo';
-        }
-        
-        // Função para inicializar UI (carrinho sempre visível)
-        function initializeUI() {
-            // Mostrar carrinho sempre (sem login)
-            document.getElementById('cart-btn').classList.remove('hidden');
-            updateCartCount();
-        }
-        
-        // ===== INICIALIZAÇÃO REMOVIDA - JÁ CONFIGURADA ACIMA =====
-
-        // Funções utilitárias
-        function scrollToSection(sectionId) {
-            const element = document.getElementById(sectionId);
-            if (element) {
-                const headerHeight = 80;
-                const elementPosition = element.offsetTop - headerHeight;
-                
-                window.scrollTo({
-                    top: elementPosition,
-                    behavior: 'smooth'
-                });
-            }
+            // Reconfigurar botões de adicionar ao carrinho
+            setupAddToCartButtons();
         }
 
         // ===== SISTEMA DE FILTROS DE MENU =====
@@ -1690,7 +1621,10 @@
             console.log(`🔍 Inicializando filtros de menu: ${filterButtons.length} botões, ${menuItems.length} itens`);
             
             filterButtons.forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
                     const category = this.getAttribute('data-category');
                     console.log(`🎯 Filtro selecionado: ${category}`);
                     
@@ -1705,15 +1639,6 @@
                     
                     // Filtrar itens do menu
                     filterMenuItems(category);
-                    
-                    // Log para analytics
-                    if (cartManager) {
-                        cartManager.logCartActivity('menu_filter_used', {
-                            category,
-                            timestamp: new Date().toISOString(),
-                            userAgent: navigator.userAgent
-                        });
-                    }
                 });
             });
             
@@ -1811,20 +1736,7 @@
             return categoryNames[category] || 'Produto';
         }
 
-        // Navbar background on scroll
-        window.addEventListener('scroll', function() {
-            const nav = document.querySelector('nav');
-            if (window.scrollY > 100) {
-                nav.classList.add('bg-white/98');
-                nav.classList.remove('bg-white/95');
-            } else {
-                nav.classList.add('bg-white/95');
-                nav.classList.remove('bg-white/98');
-            }
-        });
 
-        // ===== CÓDIGO DUPLICADO REMOVIDO =====
-        // As funções já estão definidas acima
     </script>
 </body>
 </html>

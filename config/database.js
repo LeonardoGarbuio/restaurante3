@@ -1,285 +1,398 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+
+// Caminho para o banco de dados
+const dbPath = path.join(__dirname, '../data/padaria.db');
+
+// Criar diretório data se não existir
 const fs = require('fs');
-
-// Configurações do banco SQLite
-const dbPath = process.env.NODE_ENV === 'production' 
-  ? '/tmp/sabores-portugueses.db'  // Render usa /tmp
-  : path.join(__dirname, '../data/sabores-portugueses.db');
-
-// Criar diretório data se não existir (apenas local)
-if (process.env.NODE_ENV !== 'production') {
-  const dataDir = path.dirname(dbPath);
+const dataDir = path.join(__dirname, '../data');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-}
 
-// Conectar ao banco
-const db = new sqlite3.Database(dbPath);
+// Criar conexão com o banco
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('❌ Erro ao conectar ao banco:', err.message);
+    } else {
+        console.log('✅ Conectado ao banco SQLite');
+        initializeDatabase();
+    }
+});
 
-// Configurações do banco
-db.run('PRAGMA journal_mode = WAL');
+// Inicializar banco de dados
+function initializeDatabase() {
+    // Habilitar foreign keys
 db.run('PRAGMA foreign_keys = ON');
 
-// Função para inicializar o banco
-const initDatabase = () => {
-  console.log('🗄️  Inicializando banco SQLite...');
+    // Criar tabelas
+    createTables();
+    
+    // Inserir dados iniciais
+    insertInitialData();
+}
   
   // Criar tabelas
-  const createTablesSQL = `
-      -- Tabela de usuários
-      CREATE TABLE IF NOT EXISTS users (
+function createTables() {
+    // Tabela de categorias
+    db.run(`
+        CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        phone TEXT NOT NULL,
-        password TEXT NOT NULL,
-        street TEXT NOT NULL,
-        city TEXT NOT NULL,
-        postal_code TEXT NOT NULL,
-        lat REAL,
-        lng REAL,
-        role TEXT DEFAULT 'customer' CHECK(role IN ('customer', 'admin', 'staff')),
-        loyalty_points INTEGER DEFAULT 0,
-        loyalty_tier TEXT DEFAULT 'bronze' CHECK(loyalty_tier IN ('bronze', 'silver', 'gold')),
+            name TEXT NOT NULL UNIQUE,
+            slug TEXT NOT NULL UNIQUE,
+            description TEXT,
+            image_url TEXT,
         is_active BOOLEAN DEFAULT 1,
-        email_verified BOOLEAN DEFAULT 0,
-        phone_verified BOOLEAN DEFAULT 0,
-        dietary_restrictions TEXT,
-        delivery_instructions TEXT,
-        marketing_emails BOOLEAN DEFAULT 1,
-        sms_notifications BOOLEAN DEFAULT 1,
-        last_login DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
 
-      -- Tabela de produtos
+    // Tabela de produtos
+    db.run(`
       CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT,
-        price REAL NOT NULL,
-        category TEXT NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            category_id INTEGER NOT NULL,
         image_url TEXT,
         is_available BOOLEAN DEFAULT 1,
-        stock_quantity INTEGER DEFAULT 0,
-        allergens TEXT,
-        nutritional_info TEXT,
-        preparation_time INTEGER,
+            is_featured BOOLEAN DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES categories (id)
+        )
+    `);
 
-      -- Tabela de pedidos
+    // Tabela de pedidos
+    db.run(`
       CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_number TEXT UNIQUE NOT NULL,
-        user_id INTEGER NOT NULL,
-        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled', 'refunded')),
-        delivery_type TEXT NOT NULL CHECK(delivery_type IN ('delivery', 'pickup', 'dine-in')),
-        delivery_street TEXT,
-        delivery_city TEXT,
-        delivery_postal_code TEXT,
-        delivery_instructions TEXT,
-        preferred_time TEXT CHECK(preferred_time IN ('asap', 'specific')),
-        specific_time DATETIME,
-        estimated_delivery DATETIME,
-        actual_delivery DATETIME,
-        delivery_fee REAL DEFAULT 0,
-        payment_method TEXT NOT NULL CHECK(payment_method IN ('card', 'cash', 'mbway', 'transfer', 'paypal')),
-        payment_status TEXT DEFAULT 'pending' CHECK(payment_status IN ('pending', 'paid', 'failed', 'refunded')),
-        transaction_id TEXT,
-        subtotal REAL NOT NULL,
-        tax REAL DEFAULT 0,
-        discount REAL DEFAULT 0,
-        loyalty_discount REAL DEFAULT 0,
-        final_amount REAL NOT NULL,
-        customer_notes TEXT,
-        staff_notes TEXT,
-        loyalty_points_earned INTEGER DEFAULT 0,
-        loyalty_points_used INTEGER DEFAULT 0,
-        is_urgent BOOLEAN DEFAULT 0,
-        source TEXT DEFAULT 'website' CHECK(source IN ('website', 'phone', 'whatsapp', 'in-store', 'mobile-app')),
-        order_placed DATETIME DEFAULT CURRENT_TIMESTAMP,
-        estimated_ready DATETIME,
-        actual_ready DATETIME,
+            customer_name TEXT NOT NULL,
+            customer_phone TEXT,
+            customer_email TEXT,
+            total_amount DECIMAL(10,2) NOT NULL,
+            status TEXT DEFAULT 'pending',
+            delivery_address TEXT,
+            delivery_type TEXT DEFAULT 'delivery',
+            notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-      );
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
 
-      -- Tabela de itens do pedido
+    // Tabela de itens do pedido
+    db.run(`
       CREATE TABLE IF NOT EXISTS order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL CHECK(quantity > 0),
-        unit_price REAL NOT NULL CHECK(unit_price >= 0),
-        total_price REAL NOT NULL CHECK(total_price >= 0),
-        special_instructions TEXT,
-        customization TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            product_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            unit_price DECIMAL(10,2) NOT NULL,
+            total_price DECIMAL(10,2) NOT NULL,
         FOREIGN KEY (order_id) REFERENCES orders (id),
         FOREIGN KEY (product_id) REFERENCES products (id)
-      );
+        )
+    `);
 
-      -- Tabela de histórico de status
-      CREATE TABLE IF NOT EXISTS order_status_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        note TEXT,
-        updated_by INTEGER,
-        FOREIGN KEY (order_id) REFERENCES orders (id),
-        FOREIGN KEY (updated_by) REFERENCES users (id)
-      );
 
-      -- Tabela de carrinho
-      CREATE TABLE IF NOT EXISTS cart_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL CHECK(quantity > 0),
-        special_instructions TEXT,
-        customization TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id),
-        FOREIGN KEY (product_id) REFERENCES products (id)
-      );
 
-      -- Tabela de fidelidade
-      CREATE TABLE IF NOT EXISTS loyalty_transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        order_id INTEGER,
-        points INTEGER NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('earned', 'used', 'bonus', 'expired')),
-        description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id),
-        FOREIGN KEY (order_id) REFERENCES orders (id)
-      );
+    console.log('✅ Tabelas criadas com sucesso');
+}
 
-      -- Tabela de recompensas
-      CREATE TABLE IF NOT EXISTS loyalty_rewards (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        points_required INTEGER NOT NULL,
-        discount_percentage REAL,
-        discount_amount REAL,
-        is_active BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+// Inserir dados iniciais
+function insertInitialData() {
+    // Verificar se já existem dados
+    db.get('SELECT COUNT(*) as count FROM categories', (err, row) => {
+        if (err) {
+            console.error('❌ Erro ao verificar categorias:', err);
+            return;
+        }
+        
+        if (row.count === 0) {
+            insertCategories();
+        }
+    });
+}
 
-      -- Tabela de metas de fidelidade
-      CREATE TABLE IF NOT EXISTS loyalty_goals (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        points_target INTEGER NOT NULL,
-        reward_description TEXT,
-        is_active BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+// Inserir categorias
+function insertCategories() {
+    const categories = [
+        {
+            name: 'Todos',
+            slug: 'all',
+            description: 'Todos os produtos disponíveis',
+            sort_order: 0
+        },
+        {
+            name: 'Bolos',
+            slug: 'bolos',
+            description: 'Bolos tradicionais portugueses',
+            image_url: 'https://images.pexels.com/photos/1721932/pexels-photo-1721932.jpeg',
+            sort_order: 1
+        },
+        {
+            name: 'Salgados',
+            slug: 'salgados',
+            description: 'Salgados frescos e tradicionais',
+            image_url: 'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg',
+            sort_order: 2
+        },
+        {
+            name: 'Bebidas',
+            slug: 'bebidas',
+            description: 'Bebidas quentes e frias',
+            image_url: 'https://images.pexels.com/photos/1869820/pexels-photo-1869820.jpeg',
+            sort_order: 3
+        },
+        {
+            name: 'Pães',
+            slug: 'paes',
+            description: 'Pães frescos diariamente',
+            image_url: 'https://images.pexels.com/photos/1869343/pexels-photo-1869343.jpeg',
+            sort_order: 4
+        }
+    ];
 
-      -- Tabela de entregas
-      CREATE TABLE IF NOT EXISTS deliveries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id INTEGER NOT NULL,
-        driver_id INTEGER,
-        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'failed')),
-        pickup_time DATETIME,
-        delivery_time DATETIME,
-        current_lat REAL,
-        current_lng REAL,
-        estimated_delivery DATETIME,
-        actual_delivery DATETIME,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (order_id) REFERENCES orders (id),
-        FOREIGN KEY (driver_id) REFERENCES users (id)
-      );
+    const stmt = db.prepare(`
+        INSERT INTO categories (name, slug, description, image_url, sort_order)
+        VALUES (?, ?, ?, ?, ?)
+    `);
 
-      -- Tabela de contatos
-      CREATE TABLE IF NOT EXISTS contacts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT,
-        subject TEXT NOT NULL,
-        message TEXT NOT NULL,
-        status TEXT DEFAULT 'new' CHECK(status IN ('new', 'read', 'replied', 'closed')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+    categories.forEach(category => {
+        stmt.run(category.name, category.slug, category.description, category.image_url, category.sort_order);
+    });
 
-      -- Índices para melhor performance
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
-      CREATE INDEX IF NOT EXISTS idx_users_city ON users(city);
-      CREATE INDEX IF NOT EXISTS idx_users_loyalty_points ON users(loyalty_points);
-      
-      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-      CREATE INDEX IF NOT EXISTS idx_products_available ON products(is_available);
-      
-      CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
-      CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-      CREATE INDEX IF NOT EXISTS idx_orders_delivery_type ON orders(delivery_type);
-      CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
-      CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
-      
-      CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
-      CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);
-      
-      CREATE INDEX IF NOT EXISTS idx_cart_items_user ON cart_items(user_id);
-      CREATE INDEX IF NOT EXISTS idx_cart_items_product ON cart_items(product_id);
-      
-      CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_user ON loyalty_transactions(user_id);
-      CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_order ON loyalty_transactions(order_id);
-      
-      CREATE INDEX IF NOT EXISTS idx_deliveries_order ON deliveries(order_id);
-      CREATE INDEX IF NOT EXISTS idx_deliveries_driver ON deliveries(driver_id);
-      CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status);
-  `;
+    stmt.finalize();
+    console.log('✅ Categorias inseridas');
 
-  db.exec(createTablesSQL, (err) => {
-    if (err) {
-      console.error('❌ Erro ao inicializar banco SQLite:', err.message);
-      process.exit(1);
-    }
+    // Inserir produtos após as categorias
+    setTimeout(insertProducts, 500);
+}
 
-    console.log('✅ Banco SQLite inicializado com sucesso!');
-    console.log(`📍 Caminho: ${dbPath}`);
-    
-    // Verificar se é produção
-    if (process.env.NODE_ENV === 'production') {
-      console.log('🌐 Ambiente: PRODUÇÃO (Render)');
+// Inserir produtos
+function insertProducts() {
+    const products = [
+        // Bolos
+        {
+            name: 'Bolo de Pastel de Nata',
+            description: 'Bolo tradicional português com creme de pastel de nata',
+            price: 8.50,
+            category_id: 2,
+            image_url: 'https://images.pexels.com/photos/2505997/pexels-photo-2505997.jpeg',
+            is_featured: 1,
+            sort_order: 1
+        },
+        {
+            name: 'Bolo de Chocolate',
+            description: 'Bolo de chocolate caseiro com cobertura',
+            price: 12.00,
+            category_id: 2,
+            image_url: 'https://images.pexels.com/photos/1971552/pexels-photo-1971552.jpeg',
+            is_featured: 1,
+            sort_order: 2
+        },
+        {
+            name: 'Bolo de Caramelo',
+            description: 'Bolo de caramelo com nozes',
+            price: 10.50,
+            category_id: 2,
+            image_url: 'https://images.pexels.com/photos/1721932/pexels-photo-1721932.jpeg',
+            sort_order: 3
+        },
+
+        // Salgados
+        {
+            name: 'Coxinha de Frango',
+            description: 'Coxinha de frango tradicional',
+            price: 3.50,
+            category_id: 3,
+            image_url: 'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg',
+            is_featured: 1,
+            sort_order: 1
+        },
+        {
+            name: 'Empada de Palmito',
+            description: 'Empada de palmito fresca',
+            price: 4.00,
+            category_id: 3,
+            image_url: 'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg',
+            sort_order: 2
+        },
+        {
+            name: 'Rissole de Carne',
+            description: 'Rissole de carne moída',
+            price: 3.00,
+            category_id: 3,
+            image_url: 'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg',
+            sort_order: 3
+        },
+
+        // Bebidas
+        {
+            name: 'Café Expresso',
+            description: 'Café expresso tradicional português',
+            price: 1.50,
+            category_id: 4,
+            image_url: 'https://images.pexels.com/photos/1869820/pexels-photo-1869820.jpeg',
+            sort_order: 1
+        },
+        {
+            name: 'Cappuccino',
+            description: 'Cappuccino cremoso',
+            price: 3.50,
+            category_id: 4,
+            image_url: 'https://images.pexels.com/photos/1869820/pexels-photo-1869820.jpeg',
+            sort_order: 2
+        },
+        {
+            name: 'Chá de Limão',
+            description: 'Chá de limão natural',
+            price: 2.00,
+            category_id: 4,
+            image_url: 'https://images.pexels.com/photos/1869820/pexels-photo-1869820.jpeg',
+            sort_order: 3
+        },
+
+        // Pães
+        {
+            name: 'Pão Francês',
+            description: 'Pão francês tradicional',
+            price: 0.50,
+            category_id: 5,
+            image_url: 'https://images.pexels.com/photos/1869343/pexels-photo-1869343.jpeg',
+            sort_order: 1
+        },
+        {
+            name: 'Pão de Queijo',
+            description: 'Pão de queijo fresquinho',
+            price: 2.50,
+            category_id: 5,
+            image_url: 'https://images.pexels.com/photos/1869343/pexels-photo-1869343.jpeg',
+            sort_order: 2
+        },
+        {
+            name: 'Baguete',
+            description: 'Baguete artesanal',
+            price: 1.50,
+            category_id: 5,
+            image_url: 'https://images.pexels.com/photos/1869343/pexels-photo-1869343.jpeg',
+            sort_order: 3
+        }
+    ];
+
+    const stmt = db.prepare(`
+        INSERT INTO products (name, description, price, category_id, image_url, is_featured, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    products.forEach(product => {
+        stmt.run(product.name, product.description, product.price, product.category_id, product.image_url, product.is_featured, product.sort_order);
+    });
+
+    stmt.finalize();
+    console.log('✅ Produtos inseridos');
+}
+
+// Funções de consulta
+function getCategories() {
+    return new Promise((resolve, reject) => {
+        db.all(`
+            SELECT * FROM categories 
+            WHERE is_active = 1 
+            ORDER BY sort_order, name
+        `, (err, rows) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(rows);
+            }
+        });
+    });
+}
+
+function getProducts(categorySlug = 'all') {
+    return new Promise((resolve, reject) => {
+        let query = `
+            SELECT p.*, c.name as category_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE p.is_available = 1
+        `;
+        
+        let params = [];
+        
+        if (categorySlug !== 'all') {
+            query += ' AND c.slug = ?';
+            params.push(categorySlug);
+        }
+        
+        query += ' ORDER BY p.sort_order, p.name';
+        
+        db.all(query, params, (err, rows) => {
+            if (err) {
+                console.error('❌ Erro na query getProducts:', err);
+                reject(err);
+            } else {
+                resolve(rows);
+            }
+        });
+    });
+}
+
+function getFeaturedProducts() {
+    return new Promise((resolve, reject) => {
+        db.all(`
+            SELECT p.*, c.name as category_name, c.slug as category_slug
+            FROM products p
+            JOIN categories c ON p.category_id = c.id
+            WHERE p.is_available = 1 AND p.is_featured = 1
+            ORDER BY p.sort_order, p.name
+            LIMIT 6
+        `, (err, rows) => {
+            if (err) {
+                reject(err);
     } else {
-      console.log('💻 Ambiente: DESENVOLVIMENTO (Local)');
-    }
-  });
-};
+                resolve(rows);
+            }
+        });
+    });
+}
 
-// Inicializar banco
-initDatabase();
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🔄 Fechando conexão com banco SQLite...');
-  db.close((err) => {
+function searchProducts(searchTerm) {
+    return new Promise((resolve, reject) => {
+        const query = `
+            SELECT p.*, c.name as category_name, c.slug as category_slug
+            FROM products p
+            JOIN categories c ON p.category_id = c.id
+            WHERE p.is_available = 1 
+            AND (p.name LIKE ? OR p.description LIKE ? OR c.name LIKE ?)
+            ORDER BY p.sort_order, p.name
+        `;
+        
+        const searchPattern = `%${searchTerm}%`;
+        const params = [searchPattern, searchPattern, searchPattern];
+        
+        db.all(query, params, (err, rows) => {
     if (err) {
-      console.error('❌ Erro ao fechar banco:', err.message);
+                reject(err);
     } else {
-      console.log('✅ Conexão fechada');
+                resolve(rows);
     }
-    process.exit(0);
   });
 });
+}
 
-module.exports = db;
+// Exportar funções
+module.exports = {
+    db,
+    getCategories,
+    getProducts,
+    getFeaturedProducts,
+    searchProducts
+};

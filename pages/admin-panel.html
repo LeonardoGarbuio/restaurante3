@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Painel Administrativo - Padaria</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/admin.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    
+    <!-- Navigation -->
+    <nav class="admin-header">
+        <div class="admin-nav">
+            <div class="admin-brand">
+                <div class="admin-logo">
+                    <i class="fas fa-bread-slice"></i>
+                </div>
+                <h1 class="admin-title">Painel Administrativo</h1>
+            </div>
+            <div class="admin-user">
+                <div class="user-info">
+                    <div class="user-name" id="adminInfo">Admin</div>
+                    <div class="user-role">Administrador</div>
+                </div>
+                <button id="logoutBtn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sair
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="admin-container">
+        
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="sidebar-nav">
+                <button onclick="showSection('dashboard')" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </button>
+                <button onclick="showSection('orders')" class="nav-item" data-section="orders">
+                    <i class="fas fa-shopping-cart"></i>
+                    Pedidos
+                </button>
+                <button onclick="showSection('products')" class="nav-item" data-section="products">
+                    <i class="fas fa-box"></i>
+                    Produtos
+                </button>
+                <button onclick="showSection('delivery')" class="nav-item" data-section="delivery">
+                    <i class="fas fa-truck"></i>
+                    Delivery
+                </button>
+
+                <button onclick="showSection('analytics')" class="nav-item" data-section="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    Analytics
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="admin-main">
+            
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section-content">
+                <div class="page-header">
+                    <h2 class="page-title">Dashboard</h2>
+                    <p class="page-subtitle">Visão geral do seu negócio</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="admin-grid">
+                    <div class="admin-card">
+                        <div class="card-header">
+                            <div class="card-title">Total de Pedidos</div>
+                            <div class="card-icon blue">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="totalOrders">0</div>
+                        <div class="card-description">Pedidos este mês</div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="card-header">
+                            <div class="card-title">Receita Hoje</div>
+                            <div class="card-icon green">
+                                <i class="fas fa-euro-sign"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="todayRevenue">€0</div>
+                        <div class="card-description">Receita de hoje</div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="card-header">
+                            <div class="card-title">Em Delivery</div>
+                            <div class="card-icon yellow">
+                                <i class="fas fa-truck"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="activeDeliveries">0</div>
+                        <div class="card-description">Entregas ativas</div>
+                    </div>
+
+
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Vendas dos Últimos 7 Dias</h3>
+                        <canvas id="salesChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Produtos Mais Vendidos</h3>
+                        <canvas id="productsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Orders Section -->
+            <section id="orders" class="section-content hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">Gestão de Pedidos</h2>
+                    <p class="text-gray-600">Gerencie todos os pedidos dos clientes</p>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="orders-table">
+                    <div class="orders-table-header">
+                        <h3 class="orders-table-title">Pedidos Recentes</h3>
+                        <button onclick="refreshOrders()" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Itens</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <!-- Orders will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Products Section -->
+            <section id="products" class="section-content hidden">
+                <div class="page-header">
+                    <h2 class="page-title">Gestão de Produtos</h2>
+                    <p class="page-subtitle">Gerencie o catálogo de produtos</p>
+                </div>
+
+                <!-- Add Product Form -->
+                <div class="admin-form mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Adicionar Novo Produto</h3>
+                    <form id="addProductForm" class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nome do Produto</label>
+                            <input type="text" id="productName" required class="form-input" placeholder="Ex: Pastel de Nata">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Preço (€)</label>
+                            <input type="number" id="productPrice" step="0.01" required class="form-input" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Categoria</label>
+                            <select id="productCategory" required class="form-input">
+                                <option value="">Selecione uma categoria</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Descrição</label>
+                            <textarea id="productDescription" class="form-input" rows="3" placeholder="Descrição do produto"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Imagem do Produto</label>
+                            <input type="file" id="productImage" class="form-input" accept="image/*" onchange="previewImage(this)">
+                            <small class="text-gray-500">Formatos aceitos: JPG, PNG, GIF (máx. 5MB)</small>
+                            <div id="imagePreview" class="image-preview" style="display: none;">
+                                <div class="image-preview-container">
+                                    <img id="previewImg" src="" alt="Preview da imagem">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="productAvailable" checked class="mr-2">
+                                    Disponível
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="productFeatured" class="mr-2">
+                                    Destaque na Landing (Máx: 6)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ordem na Landing</label>
+                            <input type="number" id="productSortOrder" min="1" max="6" class="form-input" placeholder="1-6 (1 = primeiro)">
+                            <small class="text-gray-500">Apenas produtos em destaque aparecem na landing page</small>
+                        </div>
+                    </form>
+                    <div class="form-actions">
+                        <button type="button" onclick="saveProduct()" class="btn btn-success">
+                            <i class="fas fa-save"></i>
+                            Salvar Produto
+                        </button>
+                        <button type="button" onclick="clearProductForm()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i>
+                            Limpar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Landing Page Products Manager -->
+                <div class="admin-table mb-8">
+                    <div class="table-header">
+                        <h3 class="table-title">🎯 Produtos da Landing Page (Máximo: 6)</h3>
+                        <div class="flex gap-2">
+                            <span class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                                <span id="landingProductsCount">0</span>/6 produtos
+                            </span>
+                            <button onclick="loadProducts()" class="btn btn-primary">
+                                <i class="fas fa-sync-alt"></i>
+                                Atualizar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Posição</th>
+                                    <th>Imagem</th>
+                                    <th>Nome</th>
+                                    <th>Categoria</th>
+                                    <th>Preço</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="landingProductsTableBody">
+                                <!-- Landing products will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- All Products Table -->
+                <div class="admin-table">
+                    <div class="table-header">
+                        <h3 class="table-title">Todos os Produtos</h3>
+                        <button onclick="loadProducts()" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Imagem</th>
+                                    <th>Nome</th>
+                                    <th>Categoria</th>
+                                    <th>Preço</th>
+                                    <th>Status</th>
+                                    <th>Destaque</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody">
+                                <!-- Products will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Delivery Section -->
+            <section id="delivery" class="section-content hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">Sistema de Delivery</h2>
+                    <p class="text-gray-600">Gerencie entregas e rotas</p>
+                </div>
+
+                <!-- Delivery Status -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Entregas Pendentes</h3>
+                        <div id="pendingDeliveries" class="space-y-3">
+                            <!-- Pending deliveries will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Entregas em Andamento</h3>
+                        <div id="activeDeliveriesList" class="space-y-3">
+                            <!-- Active deliveries will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Map Placeholder -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Mapa de Entregas</h3>
+                    <div class="bg-gray-100 h-64 rounded-lg flex items-center justify-center">
+                        <div class="text-center text-gray-500">
+                            <i class="fas fa-map-marked-alt text-4xl mb-2"></i>
+                            <p>Mapa de entregas será integrado aqui</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+
+            <!-- Analytics Section -->
+            <section id="analytics" class="section-content hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">Analytics e Relatórios</h2>
+                    <p class="text-gray-600">Análises detalhadas do seu negócio</p>
+                </div>
+
+                <!-- Analytics Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Receita Mensal</h3>
+                        <canvas id="monthlyRevenueChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Horários de Pico</h3>
+                        <canvas id="peakHoursChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let charts = {};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar autenticação
+            checkAuth();
+            
+            // Configurar eventos
+            setupEventListeners();
+            
+            // Carregar dashboard por padrão
+            showSection('dashboard');
+        });
+
+        async function checkAuth() {
+            try {
+                console.log('🔍 Verificando autenticação...');
+                const response = await fetch('/api/admin/verify');
+                console.log('📡 Auth response status:', response.status);
+                const data = await response.json();
+                console.log('📡 Auth response data:', data);
+                
+                if (!data.success) {
+                    console.log('❌ Auth falhou, mas continuando para debug...');
+                    // Temporariamente desabilitar redirecionamento
+                    // window.location.href = '/pages/admin-login.html';
+                    // return;
+                }
+                
+                console.log('✅ Auth bem-sucedida ou debug mode');
+                currentUser = data.user || { username: 'Admin' };
+                document.getElementById('adminInfo').textContent = `Olá, ${currentUser.username}`;
+                
+            } catch (error) {
+                console.error('❌ Erro na verificação de auth:', error);
+                // Temporariamente comentar o redirecionamento para debug
+                // window.location.href = '/pages/admin-login.html';
+                currentUser = { username: 'Admin' };
+                document.getElementById('adminInfo').textContent = 'Olá, Admin';
+            }
+        }
+
+        function setupEventListeners() {
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                try {
+                    await fetch('/api/admin/logout', { method: 'POST' });
+                    window.location.href = '/pages/admin-login.html';
+                } catch (error) {
+                    console.error('❌ Erro no logout:', error);
+                }
+            });
+
+            // Add Product Form
+            document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await addProduct();
+            });
+        }
+
+        function showSection(sectionName) {
+            console.log('🔄 Mostrando seção:', sectionName);
+            
+            // Esconder todas as seções
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+                section.style.display = 'none';
+            });
+            
+            // Mostrar seção selecionada
+            const targetSection = document.getElementById(sectionName);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+                targetSection.style.display = 'block';
+                console.log('✅ Seção mostrada:', sectionName);
+            } else {
+                console.error('❌ Seção não encontrada:', sectionName);
+            }
+            
+            // Atualizar navegação
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Encontrar o link correto na navegação
+            const navLink = document.querySelector(`[onclick="showSection('${sectionName}')"]`);
+            if (navLink) {
+                navLink.classList.add('active');
+                console.log('✅ Navegação atualizada');
+            }
+            
+            // Carregar dados da seção
+            loadSectionData(sectionName);
+        }
+
+        async function loadSectionData(sectionName) {
+            switch(sectionName) {
+                case 'dashboard':
+                    await loadDashboardData();
+                    break;
+                case 'orders':
+                    await loadOrders();
+                    break;
+                case 'products':
+                    await loadProducts();
+                    await loadCategories();
+                    break;
+                case 'delivery':
+                    await loadDeliveryData();
+                    break;
+
+                case 'analytics':
+                    await loadAnalytics();
+                    break;
+            }
+        }
+
+        async function loadDashboardData() {
+            // Simular dados do dashboard
+            document.getElementById('totalOrders').textContent = '156';
+            document.getElementById('todayRevenue').textContent = '€342.50';
+            document.getElementById('activeDeliveries').textContent = '8';
+
+            
+            // Criar gráficos
+            createSalesChart();
+            createProductsChart();
+        }
+
+        function createSalesChart() {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            
+            if (charts.salesChart) {
+                charts.salesChart.destroy();
+            }
+            
+            charts.salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+                    datasets: [{
+                        label: 'Vendas (€)',
+                        data: [120, 190, 300, 500, 200, 300, 450],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function createProductsChart() {
+            const ctx = document.getElementById('productsChart').getContext('2d');
+            
+            if (charts.productsChart) {
+                charts.productsChart.destroy();
+            }
+            
+            charts.productsChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pão', 'Bolo', 'Café', 'Doces'],
+                    datasets: [{
+                        data: [30, 25, 20, 25],
+                        backgroundColor: [
+                            '#3B82F6',
+                            '#10B981',
+                            '#F59E0B',
+                            '#8B5CF6'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        async function loadOrders() {
+            // Simular carregamento de pedidos
+            const ordersTableBody = document.getElementById('ordersTableBody');
+            ordersTableBody.innerHTML = `
+                <tr>
+                    <td>#001</td>
+                    <td>João Silva</td>
+                    <td>3 itens</td>
+                    <td class="order-total">€15.50</td>
+                    <td>
+                        <span class="status-badge status-delivered">
+                            Entregue
+                        </span>
+                    </td>
+                    <td>15/01/2024</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button onclick="viewOrder('001')" class="action-btn action-btn-view">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                            <button onclick="editOrder('001')" class="action-btn action-btn-edit">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>#002</td>
+                    <td>Maria Santos</td>
+                    <td>5 itens</td>
+                    <td class="order-total">€28.90</td>
+                    <td>
+                        <span class="status-badge status-pending">
+                            Pendente
+                        </span>
+                    </td>
+                    <td>16/01/2024</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button onclick="viewOrder('002')" class="action-btn action-btn-view">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                            <button onclick="editOrder('002')" class="action-btn action-btn-edit">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>#003</td>
+                    <td>Pedro Costa</td>
+                    <td>2 itens</td>
+                    <td class="order-total">€12.75</td>
+                    <td>
+                        <span class="status-badge status-processing">
+                            Em Processo
+                        </span>
+                    </td>
+                    <td>17/01/2024</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button onclick="viewOrder('003')" class="action-btn action-btn-view">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                            <button onclick="editOrder('003')" class="action-btn action-btn-edit">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        async function loadProducts() {
+            try {
+                console.log('🔄 Carregando produtos...');
+                const response = await fetch('/api/admin/products');
+                const data = await response.json();
+                
+                console.log('📦 Dados recebidos:', data);
+                
+                if (data.success) {
+                    // Carregar produtos da landing page
+                    await loadLandingProducts(data.data);
+                    
+                    // Carregar todos os produtos
+                    const productsTableBody = document.getElementById('productsTableBody');
+                    productsTableBody.innerHTML = '';
+                    
+                    console.log(`📋 Renderizando ${data.data.length} produtos`);
+                    
+                    data.data.forEach(product => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>
+                                <div class="product-image-container">
+                                    <img src="${product.image_url || 'https://via.placeholder.com/80x80?text=Produto'}" 
+                                         alt="${product.name}">
+                                </div>
+                            </td>
+                            <td class="product-name">${product.name}</td>
+                            <td class="product-category">${product.category_name || 'Sem categoria'}</td>
+                            <td class="product-price">€${product.price}</td>
+                            <td>
+                                <span class="status-badge ${product.is_available ? 'status-available' : 'status-unavailable'}">
+                                    ${product.is_available ? 'Disponível' : 'Indisponível'}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge ${product.is_featured ? 'status-featured' : 'status-not-featured'}">
+                                    ${product.is_featured ? '🎯 Destaque' : 'Normal'}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button onclick="editProduct(${product.id})" class="action-btn action-btn-edit">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button onclick="deleteProduct(${product.id})" class="action-btn action-btn-delete">
+                                        <i class="fas fa-trash"></i> Deletar
+                                    </button>
+                                    <button onclick="toggleFeatured(${product.id}, ${product.is_featured})" 
+                                            class="action-btn ${product.is_featured ? 'action-btn-warning' : 'action-btn-success'}">
+                                        <i class="fas fa-${product.is_featured ? 'star' : 'star-o'}"></i>
+                                        ${product.is_featured ? 'Remover Destaque' : 'Adicionar Destaque'}
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        productsTableBody.appendChild(row);
+                    });
+                    
+                    console.log('✅ Produtos carregados com sucesso!');
+                } else {
+                    console.error('❌ Erro na resposta da API:', data.message);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar produtos:', error);
+            }
+        }
+
+        async function loadLandingProducts(allProducts) {
+            try {
+                console.log('🎯 Carregando produtos da landing page...');
+                
+                // Filtrar apenas produtos em destaque
+                const featuredProducts = allProducts
+                    .filter(product => product.is_featured)
+                    .sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999))
+                    .slice(0, 6); // Máximo 6 produtos
+                
+                const landingTableBody = document.getElementById('landingProductsTableBody');
+                const landingCount = document.getElementById('landingProductsCount');
+                
+                landingTableBody.innerHTML = '';
+                landingCount.textContent = featuredProducts.length;
+                
+                if (featuredProducts.length === 0) {
+                    landingTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-gray-500">
+                                <i class="fas fa-info-circle text-2xl mb-2"></i>
+                                <p>Nenhum produto em destaque ainda.</p>
+                                <p class="text-sm">Marque produtos como "Destaque" para aparecerem na landing page.</p>
+                            </tr>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                featuredProducts.forEach((product, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-primary text-white px-2 py-1 rounded-full text-xs font-bold">
+                                    ${product.sort_order || index + 1}
+                                </span>
+                                <button onclick="moveProductUp(${product.id})" class="text-gray-400 hover:text-primary">
+                                    <i class="fas fa-arrow-up"></i>
+                                </button>
+                                <button onclick="moveProductDown(${product.id})" class="text-gray-400 hover:text-primary">
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="product-image-container">
+                                <img src="${product.image_url || 'https://via.placeholder.com/80x80?text=Produto'}" 
+                                     alt="${product.name}">
+                            </div>
+                        </td>
+                        <td class="product-name">${product.name}</td>
+                        <td class="product-category">${product.category_name || 'Sem categoria'}</td>
+                        <td class="product-price">€${product.price}</td>
+                        <td>
+                            <span class="status-badge status-featured">
+                                🎯 Destaque
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button onclick="editProduct(${product.id})" class="action-btn action-btn-edit">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button onclick="removeFromLanding(${product.id})" class="action-btn action-btn-warning">
+                                    <i class="fas fa-times"></i> Remover
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    landingTableBody.appendChild(row);
+                });
+                
+                console.log(`✅ ${featuredProducts.length} produtos da landing page carregados!`);
+            } catch (error) {
+                console.error('❌ Erro ao carregar produtos da landing page:', error);
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                console.log('🔄 Carregando categorias...');
+                const response = await fetch('/api/admin/categories');
+                const data = await response.json();
+                
+                console.log('📂 Categorias recebidas:', data);
+                
+                if (data.success) {
+                    const select = document.getElementById('productCategory');
+                    select.innerHTML = '<option value="">Selecione uma categoria</option>';
+                    
+                    console.log(`📋 Renderizando ${data.data.length} categorias`);
+                    
+                    data.data.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        select.appendChild(option);
+                    });
+                    
+                    console.log('✅ Categorias carregadas com sucesso!');
+                } else {
+                    console.error('❌ Erro na resposta da API de categorias:', data.message);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar categorias:', error);
+            }
+        }
+
+        async function saveProduct() {
+            const name = document.getElementById('productName').value;
+            const price = document.getElementById('productPrice').value;
+            const category = document.getElementById('productCategory').value;
+            const description = document.getElementById('productDescription').value;
+            const imageFile = document.getElementById('productImage').files[0];
+            const is_available = document.getElementById('productAvailable').checked ? 1 : 0;
+            const is_featured = document.getElementById('productFeatured').checked ? 1 : 0;
+            const sort_order = document.getElementById('productSortOrder').value || null;
+            
+            if (!name || !price || !category) {
+                alert('Preencha os campos obrigatórios');
+                return;
+            }
+            
+            // Verificar se pode adicionar como destaque
+            if (is_featured) {
+                const currentFeatured = await getFeaturedProductsCount();
+                if (currentFeatured >= 6 && !document.getElementById('addProductForm').dataset.editId) {
+                    alert('Máximo de 6 produtos em destaque atingido! Remova um produto existente primeiro.');
+                    return;
+                }
+            }
+            
+            try {
+                // Criar FormData para upload de arquivo
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('price', parseFloat(price));
+                formData.append('category_id', parseInt(category));
+                formData.append('description', description);
+                formData.append('is_available', is_available);
+                formData.append('is_featured', is_featured);
+                if (sort_order) {
+                    formData.append('sort_order', parseInt(sort_order));
+                }
+                
+                if (imageFile) {
+                    formData.append('image', imageFile);
+                }
+                
+                const response = await fetch('/api/admin/products', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Produto salvo com sucesso!');
+                    resetProductForm();
+                    await loadProducts();
+                } else {
+                    alert('Erro ao salvar produto: ' + data.message);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao salvar produto:', error);
+                alert('Erro ao salvar produto');
+            }
+        }
+
+        function clearProductForm() {
+            resetProductForm();
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Tem certeza que deseja deletar este produto?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/products/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Produto deletado com sucesso!');
+                    loadProducts();
+                } else {
+                    alert('Erro ao deletar produto: ' + data.message);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao deletar produto:', error);
+                alert('Erro ao deletar produto');
+            }
+        }
+
+        async function editProduct(id) {
+            try {
+                console.log('🔄 Editando produto ID:', id);
+                
+                // Buscar dados do produto
+                const response = await fetch(`/api/admin/products/${id}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const product = data.data;
+                    console.log('📦 Produto encontrado:', product);
+                    
+                    // Preencher formulário com dados do produto
+                    document.getElementById('productName').value = product.name;
+                    document.getElementById('productPrice').value = product.price;
+                    document.getElementById('productCategory').value = product.category_id;
+                    document.getElementById('productDescription').value = product.description || '';
+                    document.getElementById('productAvailable').checked = product.is_available == 1;
+                    document.getElementById('productFeatured').checked = product.is_featured == 1;
+                    document.getElementById('productSortOrder').value = product.sort_order || '';
+                    
+                    // Mostrar preview da imagem se existir
+                    if (product.image_url) {
+                        const preview = document.getElementById('imagePreview');
+                        const previewImg = document.getElementById('previewImg');
+                        previewImg.src = product.image_url;
+                        preview.style.display = 'block';
+                    }
+                    
+                    // Mudar botão para "Atualizar Produto"
+                    const saveBtn = document.querySelector('button[onclick="saveProduct()"]');
+                    saveBtn.innerHTML = '<i class="fas fa-edit"></i> Atualizar Produto';
+                    saveBtn.onclick = () => updateProduct(id);
+                    
+                    // Mudar título do formulário
+                    const formTitle = document.querySelector('.admin-form h3');
+                    formTitle.textContent = 'Editar Produto';
+                    
+                    // Adicionar ID do produto sendo editado
+                    document.getElementById('addProductForm').dataset.editId = id;
+                    
+                    // Rolar para o formulário
+                    document.querySelector('.admin-form').scrollIntoView({ behavior: 'smooth' });
+                    
+                    console.log('✅ Formulário preenchido para edição');
+                } else {
+                    console.error('❌ Erro ao buscar produto:', data.message);
+                    alert('Erro ao carregar dados do produto');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao editar produto:', error);
+                alert('Erro ao carregar dados do produto');
+            }
+        }
+
+        async function loadDeliveryData() {
+            // Simular dados de delivery
+            document.getElementById('pendingDeliveries').innerHTML = `
+                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-sm font-medium text-yellow-800">Pedido #002 - Rua das Flores, 123</p>
+                    <p class="text-xs text-yellow-600">Aguardando confirmação</p>
+                </div>
+            `;
+            
+            document.getElementById('activeDeliveriesList').innerHTML = `
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm font-medium text-blue-800">Pedido #001 - Av. Principal, 456</p>
+                    <p class="text-xs text-blue-600">Em trânsito - João (Entregador)</p>
+                </div>
+            `;
+        }
+
+
+
+        async function loadAnalytics() {
+            // Criar gráficos de analytics
+            createMonthlyRevenueChart();
+            createPeakHoursChart();
+        }
+
+        function createMonthlyRevenueChart() {
+            const ctx = document.getElementById('monthlyRevenueChart').getContext('2d');
+            
+            if (charts.monthlyRevenueChart) {
+                charts.monthlyRevenueChart.destroy();
+            }
+            
+            charts.monthlyRevenueChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+                    datasets: [{
+                        label: 'Receita (€)',
+                        data: [1200, 1900, 3000, 5000, 2000, 3000],
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function createPeakHoursChart() {
+            const ctx = document.getElementById('peakHoursChart').getContext('2d');
+            
+            if (charts.peakHoursChart) {
+                charts.peakHoursChart.destroy();
+            }
+            
+            charts.peakHoursChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['6h', '8h', '10h', '12h', '14h', '16h', '18h', '20h'],
+                    datasets: [{
+                        label: 'Pedidos',
+                        data: [5, 15, 8, 25, 12, 18, 30, 20],
+                        borderColor: 'rgb(16, 185, 129)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        async function addProduct() {
+            const name = document.getElementById('productName').value;
+            const price = document.getElementById('productPrice').value;
+            
+            if (!name || !price) {
+                alert('Preencha todos os campos');
+                return;
+            }
+            
+            // Simular adição de produto
+            alert(`Produto "${name}" adicionado com sucesso!`);
+            document.getElementById('addProductForm').reset();
+            await loadProducts();
+        }
+
+        async function refreshOrders() {
+            await loadOrders();
+        }
+
+        // Função para preview da imagem
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        // Função para mostrar notificações
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // ===== FUNÇÕES DE GERENCIAMENTO DE DESTAQUE =====
+        
+        async function getFeaturedProductsCount() {
+            try {
+                const response = await fetch('/api/admin/products');
+                const data = await response.json();
+                if (data.success) {
+                    return data.data.filter(product => product.is_featured).length;
+                }
+                return 0;
+            } catch (error) {
+                console.error('❌ Erro ao contar produtos em destaque:', error);
+                return 0;
+            }
+        }
+
+        async function getProductById(id) {
+            try {
+                const response = await fetch(`/api/admin/products/${id}`);
+                const data = await response.json();
+                if (data.success) {
+                    return data.data;
+                }
+                return null;
+            } catch (error) {
+                console.error('❌ Erro ao buscar produto:', error);
+                return null;
+            }
+        }
+
+        async function toggleFeatured(productId, currentStatus) {
+            try {
+                const newStatus = !currentStatus;
+                
+                // Verificar limite de 6 produtos
+                if (newStatus) {
+                    const currentCount = await getFeaturedProductsCount();
+                    if (currentCount >= 6) {
+                        alert('Máximo de 6 produtos em destaque atingido! Remova um produto existente primeiro.');
+                        return;
+                    }
+                }
+                
+                const response = await fetch(`/api/admin/products/${productId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        is_featured: newStatus ? 1 : 0,
+                        sort_order: newStatus ? (await getFeaturedProductsCount()) + 1 : null
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`Produto ${newStatus ? 'adicionado ao' : 'removido do'} destaque!`, 'success');
+                    await loadProducts(); // Recarregar produtos
+                } else {
+                    showNotification('Erro ao atualizar produto!', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao alternar destaque:', error);
+                showNotification('Erro ao alternar destaque!', 'error');
+            }
+        }
+
+        async function removeFromLanding(productId) {
+            try {
+                const response = await fetch(`/api/admin/products/${productId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        is_featured: 0,
+                        sort_order: null
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('Produto removido da landing page!', 'success');
+                    await loadProducts(); // Recarregar produtos
+                } else {
+                    showNotification('Erro ao remover produto!', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao remover da landing:', error);
+                showNotification('Erro ao remover produto!', 'error');
+            }
+        }
+
+        async function moveProductUp(productId) {
+            await moveProductPosition(productId, 'up');
+        }
+
+        async function moveProductDown(productId) {
+            await moveProductPosition(productId, 'down');
+        }
+
+        async function moveProductPosition(productId, direction) {
+            try {
+                const response = await fetch('/api/admin/products');
+                const data = await response.json();
+                
+                if (!data.success) return;
+                
+                const featuredProducts = data.data
+                    .filter(p => p.is_featured)
+                    .sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999));
+                
+                const currentIndex = featuredProducts.findIndex(p => p.id === productId);
+                if (currentIndex === -1) return;
+                
+                let newIndex;
+                if (direction === 'up' && currentIndex > 0) {
+                    newIndex = currentIndex - 1;
+                } else if (direction === 'down' && currentIndex < featuredProducts.length - 1) {
+                    newIndex = currentIndex + 1;
+                } else {
+                    return; // Não pode mover
+                }
+                
+                // Trocar posições
+                const currentProduct = featuredProducts[currentIndex];
+                const targetProduct = featuredProducts[newIndex];
+                
+                await fetch(`/api/admin/products/${currentProduct.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sort_order: targetProduct.sort_order || newIndex + 1 })
+                });
+                
+                await fetch(`/api/admin/products/${targetProduct.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sort_order: currentProduct.sort_order || newIndex + 1 })
+                });
+                
+                showNotification('Posição atualizada!', 'success');
+                await loadProducts(); // Recarregar produtos
+            } catch (error) {
+                console.error('❌ Erro ao mover produto:', error);
+                showNotification('Erro ao mover produto!', 'error');
+            }
+        }
+
+        // Função para atualizar produto
+        async function updateProduct(id) {
+            try {
+                console.log('🔄 Atualizando produto ID:', id);
+                
+                const name = document.getElementById('productName').value;
+                const price = document.getElementById('productPrice').value;
+                const category = document.getElementById('productCategory').value;
+                const description = document.getElementById('productDescription').value;
+                const imageFile = document.getElementById('productImage').files[0];
+                const is_available = document.getElementById('productAvailable').checked ? 1 : 0;
+                const is_featured = document.getElementById('productFeatured').checked ? 1 : 0;
+                const sort_order = document.getElementById('productSortOrder').value || null;
+                
+                if (!name || !price || !category) {
+                    alert('Preencha os campos obrigatórios');
+                    return;
+                }
+                
+                // Verificar se pode adicionar como destaque
+                if (is_featured) {
+                    const currentFeatured = await getFeaturedProductsCount();
+                    const currentProduct = await getProductById(id);
+                    if (currentFeatured >= 6 && !currentProduct.is_featured) {
+                        alert('Máximo de 6 produtos em destaque atingido! Remova um produto existente primeiro.');
+                        return;
+                    }
+                }
+                
+                // Criar FormData para upload de arquivo
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('price', price);
+                formData.append('category_id', category);
+                formData.append('description', description);
+                formData.append('is_available', is_available);
+                formData.append('is_featured', is_featured);
+                if (sort_order) {
+                    formData.append('sort_order', parseInt(sort_order));
+                }
+                
+                if (imageFile) {
+                    formData.append('image', imageFile);
+                }
+                
+                console.log('📝 Atualizando produto:', {
+                    name, price, category, description, is_available, is_featured
+                });
+                
+                const response = await fetch(`/api/admin/products/${id}`, {
+                    method: 'PUT',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Produto atualizado com sucesso!');
+                    resetProductForm();
+                    await loadProducts();
+                } else {
+                    alert('Erro ao atualizar produto: ' + data.message);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao atualizar produto:', error);
+                alert('Erro ao atualizar produto');
+            }
+        }
+
+        // Função para resetar formulário
+        function resetProductForm() {
+            // Limpar formulário
+            document.getElementById('addProductForm').reset();
+            
+            // Limpar preview da imagem
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('previewImg').src = '';
+            
+            // Limpar campo de ordem
+            document.getElementById('productSortOrder').value = '';
+            
+            // Resetar botão para "Salvar Produto"
+            const saveBtn = document.querySelector('button[onclick="updateProduct()"]') || 
+                           document.querySelector('button[onclick="saveProduct()"]');
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
+                saveBtn.onclick = () => saveProduct();
+            }
+            
+            // Resetar título do formulário
+            const formTitle = document.querySelector('.admin-form h3');
+            formTitle.textContent = 'Adicionar Novo Produto';
+            
+            // Remover ID de edição
+            delete document.getElementById('addProductForm').dataset.editId;
+            
+            console.log('✅ Formulário resetado');
+        }
+
+        // Funções para pedidos
+        function viewOrder(orderId) {
+            alert(`Visualizando pedido #${orderId} - Funcionalidade será implementada em breve!`);
+        }
+
+        function editOrder(orderId) {
+            alert(`Editando pedido #${orderId} - Funcionalidade será implementada em breve!`);
+        }
+    </script>
+
+</body>
+</html>

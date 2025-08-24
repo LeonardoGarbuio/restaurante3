@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Login Administrativo - Padaria</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/admin.css" rel="stylesheet">
+</head>
+<body>
+    
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="admin-nav">
+            <div class="admin-brand">
+                <div class="admin-logo">
+                    <i class="fas fa-bread-slice"></i>
+                </div>
+                <h1 class="admin-title">Padaria Admin</h1>
+            </div>
+            <a href="/" class="btn btn-secondary">
+                <i class="fas fa-home"></i>
+                Voltar ao Site
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="login-container">
+        <div class="login-card fade-in-up">
+            
+            <!-- Header -->
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <h2 class="login-title">Acesso Administrativo</h2>
+                <p class="login-subtitle">Faça login para acessar o painel</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="adminLoginForm" class="login-form">
+                
+                <!-- Username -->
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        <i class="fas fa-user"></i> Usuário
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        class="form-input"
+                        placeholder="Digite seu usuário"
+                    >
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        <i class="fas fa-lock"></i> Senha
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        class="form-input"
+                        placeholder="Digite sua senha"
+                    >
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="login-button">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Entrar
+                </button>
+
+            </form>
+
+            <div class="login-footer">
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-shield-alt"></i> Área Administrativa Segura
+                </p>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('adminLoginForm');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+
+            // Verificar se já está logado
+            checkAuthStatus();
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+
+                console.log('🔐 Tentando login:', { username, password });
+
+                try {
+                    const response = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    console.log('📡 Response status:', response.status);
+                    const data = await response.json();
+                    console.log('📡 Response data:', data);
+
+                    if (data.success) {
+                        // Login bem-sucedido
+                        showNotification('✅ Login realizado com sucesso!', 'success');
+                        console.log('✅ Login bem-sucedido, redirecionando...');
+                        // Redirecionar imediatamente
+                        window.location.href = '/pages/admin-panel.html';
+                    } else {
+                        // Erro no login
+                        showNotification(data.message || 'Erro ao fazer login', 'error');
+                    }
+
+                } catch (error) {
+                    console.error('❌ Erro no login:', error);
+                    showNotification('Erro de conexão. Tente novamente.', 'error');
+                }
+            });
+
+            async function checkAuthStatus() {
+                try {
+                    const response = await fetch('/api/admin/verify');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Já está logado, redirecionar
+                        window.location.href = '/pages/admin-panel.html';
+                    }
+                } catch (error) {
+                    // Não está logado, continuar na página de login
+                }
+            }
+
+
+
+            function showNotification(message, type = 'info') {
+                // Criar notificação
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        });
+    </script>
+
+</body>
+</html>
