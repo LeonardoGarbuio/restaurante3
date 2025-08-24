@@ -1666,69 +1666,7 @@
             updateCartCount();
         }
         
-        // Quando a página carregar
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DOM carregado! Configurando botões...');
-            
-            // Configurar botão de fechar modal do carrinho
-            const closeCartBtn = document.getElementById('close-cart-modal');
-            if (closeCartBtn) {
-                closeCartBtn.onclick = closeCartModal;
-                console.log('✅ Botão de fechar carrinho configurado!');
-            }
-            
-            // Configurar botão do carrinho
-            const cartBtn = document.getElementById('cart-btn');
-            if (cartBtn) {
-                cartBtn.onclick = showCartModal;
-                console.log('✅ Botão do carrinho configurado!');
-            }
-            
-            // Configurar botão do carrinho mobile
-            const cartBtnMobile = document.getElementById('cart-btn-mobile');
-            if (cartBtnMobile) {
-                cartBtnMobile.onclick = showCartModal;
-                console.log('✅ Botão do carrinho mobile configurado!');
-            }
-            
-            // Configurar botão de limpar carrinho
-            const clearCartBtn = document.getElementById('clear-cart');
-            if (clearCartBtn) {
-                clearCartBtn.onclick = clearCart;
-                console.log('✅ Botão de limpar carrinho configurado!');
-            }
-            
-            // Configurar botão de finalizar compra
-            const checkoutBtn = document.getElementById('checkout-btn');
-            if (checkoutBtn) {
-                checkoutBtn.onclick = checkout;
-                console.log('✅ Botão de finalizar compra configurado!');
-            }
-            
-            // Botões de adicionar ao carrinho já configurados acima
-            console.log('✅ Botões de adicionar ao carrinho já configurados!');
-            
-            // Configurar menu mobile
-            const mobileBtn = document.getElementById('mobile-menu-btn');
-            if (mobileBtn) {
-                mobileBtn.onclick = function() {
-                    const mobileMenu = document.getElementById('mobile-menu');
-                    if (mobileMenu) {
-                        mobileMenu.classList.toggle('hidden');
-                        console.log('📱 Menu mobile alternado!');
-                    }
-                };
-            }
-            
-            // Inicializar filtros de menu
-            initializeMenuFilters();
-            console.log('🔍 Filtros de menu inicializados!');
-            
-            // Inicializar UI (carrinho sempre visível)
-            initializeUI();
-            
-            console.log('🎉 TODOS OS BOTÕES CONFIGURADOS!');
-        });
+        // ===== INICIALIZAÇÃO REMOVIDA - JÁ CONFIGURADA ACIMA =====
 
         // Funções utilitárias
         function scrollToSection(sectionId) {
