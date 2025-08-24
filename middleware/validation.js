@@ -159,7 +159,7 @@ const validateOrder = [
 // Validações para carrinho
 const validateCartItem = [
   body('productId')
-    .isMongoId()
+    .isInt({ min: 1 })
     .withMessage('ID do produto inválido'),
   
   body('quantity')
@@ -171,6 +171,15 @@ const validateCartItem = [
     .trim()
     .isLength({ max: 200 })
     .withMessage('Instruções especiais não podem exceder 200 caracteres'),
+  
+  handleValidationErrors
+];
+
+// Validação para quantidade
+const validateQuantity = [
+  body('quantity')
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Quantidade deve ser entre 1 e 50'),
   
   handleValidationErrors
 ];
@@ -410,6 +419,7 @@ module.exports = {
   validateProduct,
   validateOrder,
   validateCartItem,
+  validateQuantity,
   validateDelivery,
   validateContact,
   validateLoyaltyPoints,

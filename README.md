@@ -17,8 +17,7 @@ Backend completo para o sistema de padaria portuguesa "Sabores Portugueses", inc
 
 - **Node.js** - Runtime JavaScript
 - **Express.js** - Framework web
-- **MongoDB** - Base de dados NoSQL
-- **Mongoose** - ODM para MongoDB
+- **SQLite** - Base de dados relacional
 - **JWT** - Autenticação baseada em tokens
 - **bcryptjs** - Hash de senhas
 - **express-validator** - Validação de dados
@@ -28,14 +27,8 @@ Backend completo para o sistema de padaria portuguesa "Sabores Portugueses", inc
 ## 📁 Estrutura do Projeto
 
 ```
-├── models/           # Modelos Mongoose
-│   ├── User.js      # Modelo de utilizador
-│   ├── Product.js   # Modelo de produto
-│   ├── Order.js     # Modelo de pedido
-│   ├── Cart.js      # Modelo de carrinho
-│   ├── Delivery.js  # Modelo de entrega
-│   ├── Contact.js   # Modelo de contacto
-│   └── Loyalty.js   # Modelo de fidelidade
+├── config/          # Configuração da base de dados
+│   └── database.js  # Configuração SQLite
 ├── routes/          # Rotas da API
 │   ├── auth.js      # Autenticação
 │   ├── users.js     # Gestão de utilizadores
@@ -72,9 +65,9 @@ cp .env.example .env
 # Editar .env com suas configurações
 ```
 
-4. **Configurar MongoDB**
-- Instalar MongoDB localmente ou usar MongoDB Atlas
-- Atualizar `MONGODB_URI` no arquivo `.env`
+4. **Configurar SQLite**
+- SQLite é incluído por padrão e não requer instalação adicional
+- A base de dados será criada automaticamente no primeiro arranque
 
 5. **Executar o servidor**
 ```bash
@@ -95,7 +88,7 @@ PORT=5000
 NODE_ENV=development
 
 # Base de Dados
-MONGODB_URI=mongodb://localhost:27017/sabores-portugueses
+# SQLite é configurado automaticamente, não são necessárias variáveis adicionais
 
 # JWT
 JWT_SECRET=sua_chave_secreta_aqui

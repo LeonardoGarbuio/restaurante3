@@ -1,4 +1,4 @@
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
@@ -16,19 +16,18 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Conectar ao banco
-const db = new Database(dbPath);
+const db = new sqlite3.Database(dbPath);
 
 // Configurações do banco
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+db.run('PRAGMA journal_mode = WAL');
+db.run('PRAGMA foreign_keys = ON');
 
 // Função para inicializar o banco
 const initDatabase = () => {
-  try {
-    console.log('🗄️  Inicializando banco SQLite...');
-    
-    // Criar tabelas
-    db.exec(`
+  console.log('🗄️  Inicializando banco SQLite...');
+  
+  // Criar tabelas
+  const createTablesSQL = `
       -- Tabela de usuários
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -247,7 +246,13 @@ const initDatabase = () => {
       CREATE INDEX IF NOT EXISTS idx_deliveries_order ON deliveries(order_id);
       CREATE INDEX IF NOT EXISTS idx_deliveries_driver ON deliveries(driver_id);
       CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status);
-    `);
+  `;
+
+  db.exec(createTablesSQL, (err) => {
+    if (err) {
+      console.error('❌ Erro ao inicializar banco SQLite:', err.message);
+      process.exit(1);
+    }
 
     console.log('✅ Banco SQLite inicializado com sucesso!');
     console.log(`📍 Caminho: ${dbPath}`);
@@ -258,11 +263,7 @@ const initDatabase = () => {
     } else {
       console.log('💻 Ambiente: DESENVOLVIMENTO (Local)');
     }
-
-  } catch (error) {
-    console.error('❌ Erro ao inicializar banco SQLite:', error.message);
-    process.exit(1);
-  }
+  });
 };
 
 // Inicializar banco
@@ -271,9 +272,14 @@ initDatabase();
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🔄 Fechando conexão com banco SQLite...');
-  db.close();
-  console.log('✅ Conexão fechada');
-  process.exit(0);
+  db.close((err) => {
+    if (err) {
+      console.error('❌ Erro ao fechar banco:', err.message);
+    } else {
+      console.log('✅ Conexão fechada');
+    }
+    process.exit(0);
+  });
 });
 
 module.exports = db;

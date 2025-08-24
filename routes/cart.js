@@ -1,8 +1,7 @@
 const express = require('express');
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-const { authenticateToken, requireCartOwnershipOrStaff } = require('../middleware/auth');
-const { validateCartItem, validateMongoId } = require('../middleware/validation');
+const db = require('../config/database');
+const { authenticateToken, requireOwnershipOrAdmin } = require('../middleware/auth');
+const { validateCartItem, validateQuantity } = require('../middleware/validation');
 
 const router = express.Router();
 
@@ -11,44 +10,34 @@ const router = express.Router();
 // @access  Private
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.user._id })
-      .populate('items.product', 'name images price category availability');
+    const cartItems = db.prepare(`
+      SELECT ci.*, p.name, p.price, p.image_url, p.is_available
+      FROM cart_items ci
+      JOIN products p ON ci.product_id = p.id
+      WHERE ci.user_id = ?
+      ORDER BY ci.created_at DESC
+    `).all(req.user.id);
 
-    if (!cart) {
-      // Criar carrinho vazio se não existir
-      cart = new Cart({
-        user: req.user._id,
-        items: [],
-        delivery: {
-          type: 'delivery',
-          address: req.user.address
-        }
-      });
-      await cart.save();
-    }
+    // Calcular totais
+    let subtotal = 0;
+    let totalItems = 0;
 
-    // Verificar disponibilidade dos produtos
-    const updatedItems = cart.items.map(item => {
-      const product = item.product;
-      if (product) {
-        return {
-          ...item.toObject(),
-          product: {
-            ...product.toObject(),
-            isAvailable: product.isAvailableNow()
-          }
-        };
+    cartItems.forEach(item => {
+      if (item.is_available) {
+        subtotal += item.quantity * item.price;
+        totalItems += item.quantity;
       }
-      return item;
     });
-
-    cart.items = updatedItems;
-    await cart.save();
 
     res.json({
       success: true,
       data: {
-        cart
+        items: cartItems,
+        summary: {
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          totalItems,
+          itemCount: cartItems.length
+        }
       }
     });
   } catch (error) {
@@ -60,15 +49,16 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   POST /api/cart/add-item
+// @route   POST /api/cart/add
 // @desc    Adicionar item ao carrinho
 // @access  Private
-router.post('/add-item', authenticateToken, validateCartItem, async (req, res) => {
+router.post('/add', authenticateToken, validateCartItem, validateQuantity, async (req, res) => {
   try {
     const { productId, quantity, specialInstructions, customization } = req.body;
 
     // Verificar se o produto existe e está disponível
-    const product = await Product.findById(productId);
+    const product = db.prepare('SELECT id, name, price, is_available FROM products WHERE id = ?').get(productId);
+    
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -76,48 +66,60 @@ router.post('/add-item', authenticateToken, validateCartItem, async (req, res) =
       });
     }
 
-    if (!product.isAvailableNow()) {
+    if (!product.is_available) {
       return res.status(400).json({
         success: false,
-        message: 'Produto não está disponível neste momento'
+        message: 'Produto não está disponível'
       });
     }
 
-    // Verificar quantidade máxima
-    if (quantity > product.availability.maxOrderQuantity) {
-      return res.status(400).json({
-        success: false,
-        message: `Quantidade máxima permitida é ${product.availability.maxOrderQuantity}`
-      });
-    }
+    // Verificar se o item já existe no carrinho
+    const existingItem = db.prepare('SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ?').get(req.user.id, productId);
 
-    // Buscar ou criar carrinho
-    let cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
-      cart = new Cart({
-        user: req.user._id,
-        items: [],
-        delivery: {
-          type: 'delivery',
-          address: req.user.address
+    if (existingItem) {
+      // Atualizar quantidade
+      const newQuantity = existingItem.quantity + quantity;
+      db.prepare('UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newQuantity, existingItem.id);
+      
+      const updatedItem = db.prepare(`
+        SELECT ci.*, p.name, p.price, p.image_url
+        FROM cart_items ci
+        JOIN products p ON ci.product_id = p.id
+        WHERE ci.id = ?
+      `).get(existingItem.id);
+
+      res.json({
+        success: true,
+        message: 'Quantidade atualizada no carrinho',
+        data: {
+          item: updatedItem
+        }
+      });
+    } else {
+      // Adicionar novo item
+      const stmt = db.prepare(`
+        INSERT INTO cart_items (user_id, product_id, quantity, special_instructions, customization)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+
+      const result = stmt.run(req.user.id, productId, quantity, specialInstructions || null, customization || null);
+      const cartItemId = result.lastInsertRowid;
+
+      const newItem = db.prepare(`
+        SELECT ci.*, p.name, p.price, p.image_url
+        FROM cart_items ci
+        JOIN products p ON ci.product_id = p.id
+        WHERE ci.id = ?
+      `).get(cartItemId);
+
+      res.status(201).json({
+        success: true,
+        message: 'Item adicionado ao carrinho',
+        data: {
+          item: newItem
         }
       });
     }
-
-    // Adicionar item
-    await cart.addItem(productId, quantity, product.price, specialInstructions, customization);
-
-    // Buscar carrinho atualizado com produtos populados
-    const updatedCart = await Cart.findById(cart._id)
-      .populate('items.product', 'name images price category availability');
-
-    res.json({
-      success: true,
-      message: 'Item adicionado ao carrinho com sucesso',
-      data: {
-        cart: updatedCart
-      }
-    });
   } catch (error) {
     console.error('Erro ao adicionar item ao carrinho:', error);
     res.status(500).json({
@@ -127,63 +129,68 @@ router.post('/add-item', authenticateToken, validateCartItem, async (req, res) =
   }
 });
 
-// @route   PUT /api/cart/update-item/:productId
-// @desc    Atualizar quantidade de um item no carrinho
+// @route   PUT /api/cart/:itemId/update
+// @desc    Atualizar item do carrinho
 // @access  Private
-router.put('/update-item/:productId', authenticateToken, validateMongoId, async (req, res) => {
+router.put('/:itemId/update', authenticateToken, requireOwnershipOrAdmin, validateQuantity, async (req, res) => {
   try {
-    const { quantity } = req.body;
-    const { productId } = req.params;
+    const { itemId } = req.params;
+    const { quantity, specialInstructions, customization } = req.body;
 
-    if (!quantity || quantity < 1) {
-      return res.status(400).json({
-        success: false,
-        message: 'Quantidade deve ser pelo menos 1'
-      });
-    }
-
-    // Verificar se o produto existe
-    const product = await Product.findById(productId);
-    if (!product) {
+    // Verificar se o item existe e pertence ao usuário
+    const cartItem = db.prepare('SELECT * FROM cart_items WHERE id = ? AND user_id = ?').get(itemId, req.user.id);
+    
+    if (!cartItem) {
       return res.status(404).json({
         success: false,
-        message: 'Produto não encontrado'
+        message: 'Item do carrinho não encontrado'
       });
     }
 
-    // Verificar quantidade máxima
-    if (quantity > product.availability.maxOrderQuantity) {
-      return res.status(400).json({
-        success: false,
-        message: `Quantidade máxima permitida é ${product.availability.maxOrderQuantity}`
-      });
+    // Atualizar item
+    const updateFields = [];
+    const params = [];
+
+    if (quantity !== undefined) {
+      updateFields.push('quantity = ?');
+      params.push(quantity);
     }
 
-    // Buscar carrinho
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
+    if (specialInstructions !== undefined) {
+      updateFields.push('special_instructions = ?');
+      params.push(specialInstructions);
     }
 
-    // Atualizar quantidade
-    await cart.updateItemQuantity(productId, quantity);
+    if (customization !== undefined) {
+      updateFields.push('customization = ?');
+      params.push(customization);
+    }
 
-    // Buscar carrinho atualizado
-    const updatedCart = await Cart.findById(cart._id)
-      .populate('items.product', 'name images price category availability');
+    if (updateFields.length > 0) {
+      updateFields.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(itemId);
+
+      const updateQuery = `UPDATE cart_items SET ${updateFields.join(', ')} WHERE id = ?`;
+      db.prepare(updateQuery).run(...params);
+    }
+
+    // Buscar item atualizado
+    const updatedItem = db.prepare(`
+      SELECT ci.*, p.name, p.price, p.image_url
+      FROM cart_items ci
+      JOIN products p ON ci.product_id = p.id
+      WHERE ci.id = ?
+    `).get(itemId);
 
     res.json({
       success: true,
-      message: 'Quantidade atualizada com sucesso',
+      message: 'Item atualizado com sucesso',
       data: {
-        cart: updatedCart
+        item: updatedItem
       }
     });
   } catch (error) {
-    console.error('Erro ao atualizar quantidade:', error);
+    console.error('Erro ao atualizar item do carrinho:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -191,35 +198,29 @@ router.put('/update-item/:productId', authenticateToken, validateMongoId, async 
   }
 });
 
-// @route   DELETE /api/cart/remove-item/:productId
+// @route   DELETE /api/cart/:itemId
 // @desc    Remover item do carrinho
 // @access  Private
-router.delete('/remove-item/:productId', authenticateToken, validateMongoId, async (req, res) => {
+router.delete('/:itemId', authenticateToken, requireOwnershipOrAdmin, async (req, res) => {
   try {
-    const { productId } = req.params;
+    const { itemId } = req.params;
 
-    // Buscar carrinho
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
+    // Verificar se o item existe e pertence ao usuário
+    const cartItem = db.prepare('SELECT id FROM cart_items WHERE id = ? AND user_id = ?').get(itemId, req.user.id);
+    
+    if (!cartItem) {
       return res.status(404).json({
         success: false,
-        message: 'Carrinho não encontrado'
+        message: 'Item do carrinho não encontrado'
       });
     }
 
     // Remover item
-    await cart.removeItem(productId);
-
-    // Buscar carrinho atualizado
-    const updatedCart = await Cart.findById(cart._id)
-      .populate('items.product', 'name images price category availability');
+    db.prepare('DELETE FROM cart_items WHERE id = ?').run(itemId);
 
     res.json({
       success: true,
-      message: 'Item removido do carrinho com sucesso',
-      data: {
-        cart: updatedCart
-      }
+      message: 'Item removido do carrinho'
     });
   } catch (error) {
     console.error('Erro ao remover item do carrinho:', error);
@@ -235,218 +236,15 @@ router.delete('/remove-item/:productId', authenticateToken, validateMongoId, asy
 // @access  Private
 router.delete('/clear', authenticateToken, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
-    }
-
-    await cart.clearCart();
+    // Remover todos os itens do carrinho do usuário
+    db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(req.user.id);
 
     res.json({
       success: true,
-      message: 'Carrinho limpo com sucesso',
-      data: {
-        cart
-      }
+      message: 'Carrinho limpo com sucesso'
     });
   } catch (error) {
     console.error('Erro ao limpar carrinho:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   PUT /api/cart/delivery
-// @desc    Atualizar informações de entrega do carrinho
-// @access  Private
-router.put('/delivery', authenticateToken, async (req, res) => {
-  try {
-    const { type, address, instructions, preferredTime, specificTime } = req.body;
-
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
-    }
-
-    // Atualizar informações de entrega
-    if (type) cart.delivery.type = type;
-    if (address) cart.delivery.address = address;
-    if (instructions) cart.delivery.instructions = instructions;
-    if (preferredTime) cart.delivery.preferredTime = preferredTime;
-    if (specificTime) cart.delivery.specificTime = specificTime;
-
-    // Calcular taxa de entrega baseada no tipo e endereço
-    if (type === 'delivery' && address) {
-      // Simular cálculo de taxa de entrega
-      cart.delivery.deliveryFee = 2.50; // Taxa fixa por enquanto
-    } else if (type === 'pickup' || type === 'dine-in') {
-      cart.delivery.deliveryFee = 0;
-    }
-
-    await cart.save();
-
-    // Buscar carrinho atualizado
-    const updatedCart = await Cart.findById(cart._id)
-      .populate('items.product', 'name images price category availability');
-
-    res.json({
-      success: true,
-      message: 'Informações de entrega atualizadas com sucesso',
-      data: {
-        cart: updatedCart
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao atualizar entrega:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   PUT /api/cart/payment
-// @desc    Atualizar método de pagamento do carrinho
-// @access  Private
-router.put('/payment', authenticateToken, async (req, res) => {
-  try {
-    const { method, loyaltyPointsUsed } = req.body;
-
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
-    }
-
-    // Atualizar método de pagamento
-    if (method) cart.payment.method = method;
-    if (loyaltyPointsUsed !== undefined) {
-      await cart.useLoyaltyPoints(loyaltyPointsUsed);
-    }
-
-    // Buscar carrinho atualizado
-    const updatedCart = await Cart.findById(cart._id)
-      .populate('items.product', 'name images price category availability');
-
-    res.json({
-      success: true,
-      message: 'Método de pagamento atualizado com sucesso',
-      data: {
-        cart: updatedCart
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao atualizar pagamento:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   POST /api/cart/apply-discount
-// @desc    Aplicar desconto ao carrinho
-// @access  Private
-router.post('/apply-discount', authenticateToken, async (req, res) => {
-  try {
-    const { discountAmount, discountCode } = req.body;
-
-    if (!discountAmount && !discountCode) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valor de desconto ou código é obrigatório'
-      });
-    }
-
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
-    }
-
-    // TODO: Implementar validação de códigos de desconto
-    if (discountCode) {
-      // Simular validação de código
-      if (discountCode === 'WELCOME10') {
-        await cart.applyDiscount(10);
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Código de desconto inválido'
-        });
-      }
-    } else if (discountAmount) {
-      await cart.applyDiscount(parseFloat(discountAmount));
-    }
-
-    // Buscar carrinho atualizado
-    const updatedCart = await Cart.findById(cart._id)
-      .populate('items.product', 'name images price category availability');
-
-    res.json({
-      success: true,
-      message: 'Desconto aplicado com sucesso',
-      data: {
-        cart: updatedCart
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao aplicar desconto:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   GET /api/cart/summary
-// @desc    Obter resumo do carrinho
-// @access  Private
-router.get('/summary', authenticateToken, async (req, res) => {
-  try {
-    const cart = await Cart.findOne({ user: req.user._id })
-      .populate('items.product', 'name images price');
-
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
-    }
-
-    const summary = {
-      itemCount: cart.getItemCount(),
-      subtotal: cart.totals.subtotal,
-      deliveryFee: cart.totals.deliveryFee,
-      tax: cart.totals.tax,
-      discount: cart.totals.discount,
-      loyaltyDiscount: cart.totals.loyaltyDiscount,
-      total: cart.totals.total,
-      isEmpty: cart.isEmpty(),
-      deliveryType: cart.delivery.type,
-      paymentMethod: cart.payment.method
-    };
-
-    res.json({
-      success: true,
-      data: {
-        summary
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao obter resumo do carrinho:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -459,10 +257,14 @@ router.get('/summary', authenticateToken, async (req, res) => {
 // @access  Private
 router.post('/validate', authenticateToken, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user._id })
-      .populate('items.product', 'name availability price');
+    const cartItems = db.prepare(`
+      SELECT ci.*, p.name, p.price, p.is_available, p.stock_quantity
+      FROM cart_items ci
+      JOIN products p ON ci.product_id = p.id
+      WHERE ci.user_id = ?
+    `).all(req.user.id);
 
-    if (!cart || cart.isEmpty()) {
+    if (cartItems.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Carrinho está vazio'
@@ -470,62 +272,36 @@ router.post('/validate', authenticateToken, async (req, res) => {
     }
 
     const validationErrors = [];
-    const warnings = [];
+    let subtotal = 0;
 
-    // Verificar cada item
-    for (const item of cart.items) {
-      const product = item.product;
-      
-      if (!product) {
-        validationErrors.push(`Produto não encontrado: ${item._id}`);
-        continue;
+    cartItems.forEach(item => {
+      if (!item.is_available) {
+        validationErrors.push(`Produto "${item.name}" não está disponível`);
+      } else if (item.stock_quantity < item.quantity) {
+        validationErrors.push(`Produto "${item.name}" tem apenas ${item.stock_quantity} unidades em estoque`);
+      } else {
+        subtotal += item.quantity * item.price;
       }
+    });
 
-      if (!product.isAvailableNow()) {
-        validationErrors.push(`${product.name} não está disponível neste momento`);
-      }
-
-      if (product.availability.stockQuantity !== -1 && 
-          item.quantity > product.availability.stockQuantity) {
-        validationErrors.push(`${product.name} - quantidade solicitada (${item.quantity}) excede stock disponível (${product.availability.stockQuantity})`);
-      }
-
-      if (item.quantity < product.availability.minOrderQuantity) {
-        validationErrors.push(`${product.name} - quantidade mínima é ${product.availability.minOrderQuantity}`);
-      }
-
-      if (item.quantity > product.availability.maxOrderQuantity) {
-        validationErrors.push(`${product.name} - quantidade máxima é ${product.availability.maxOrderQuantity}`);
-      }
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Carrinho contém erros',
+        errors: validationErrors
+      });
     }
-
-    // Verificar endereço para entrega
-    if (cart.delivery.type === 'delivery' && !cart.delivery.address) {
-      validationErrors.push('Endereço de entrega é obrigatório');
-    }
-
-    // Verificar valor mínimo
-    if (cart.totals.subtotal < 15) {
-      warnings.push('Pedido mínimo é €15.00');
-    }
-
-    const isValid = validationErrors.length === 0;
 
     res.json({
       success: true,
+      message: 'Carrinho válido',
       data: {
-        isValid,
-        errors: validationErrors,
-        warnings,
-        cart: {
-          _id: cart._id,
-          itemCount: cart.getItemCount(),
-          total: cart.totals.total
-        }
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        itemCount: cartItems.length
       }
     });
   } catch (error) {
-    console.error('Erro na validação do carrinho:', error);
+    console.error('Erro ao validar carrinho:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -533,30 +309,43 @@ router.post('/validate', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   GET /api/cart/:id
-// @desc    Obter carrinho por ID (para staff/admin)
-// @access  Private (Staff/Admin)
-router.get('/:id', authenticateToken, requireCartOwnershipOrStaff, async (req, res) => {
+// @route   GET /api/cart/summary
+// @desc    Obter resumo do carrinho
+// @access  Private
+router.get('/summary', authenticateToken, async (req, res) => {
   try {
-    const cart = await Cart.findById(req.params.id)
-      .populate('user', 'name email phone')
-      .populate('items.product', 'name images price category');
+    const cartItems = db.prepare(`
+      SELECT ci.quantity, p.price, p.is_available
+      FROM cart_items ci
+      JOIN products p ON ci.product_id = p.id
+      WHERE ci.user_id = ?
+    `).all(req.user.id);
 
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Carrinho não encontrado'
-      });
-    }
+    let subtotal = 0;
+    let totalItems = 0;
+    let availableItems = 0;
+
+    cartItems.forEach(item => {
+      if (item.is_available) {
+        subtotal += item.quantity * item.price;
+        availableItems += item.quantity;
+      }
+      totalItems += item.quantity;
+    });
 
     res.json({
       success: true,
       data: {
-        cart
+        summary: {
+          totalItems,
+          availableItems,
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          itemCount: cartItems.length
+        }
       }
     });
   } catch (error) {
-    console.error('Erro ao obter carrinho:', error);
+    console.error('Erro ao obter resumo do carrinho:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'

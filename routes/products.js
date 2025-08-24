@@ -1,7 +1,7 @@
 const express = require('express');
-const Product = require('../models/Product');
+const db = require('../config/database');
 const { authenticateToken, requireStaff, requireAdmin } = require('../middleware/auth');
-const { validateProduct, validateMongoId, validatePagination, validateProductFilters } = require('../middleware/validation');
+const { validateProduct, validatePagination, validateProductFilters } = require('../middleware/validation');
 
 const router = express.Router();
 
@@ -24,59 +24,63 @@ router.get('/', validateProductFilters, validatePagination, async (req, res) => 
       order = 'asc'
     } = req.query;
 
-    // Construir filtros
-    const filters = {};
+    // Construir query SQL
+    let whereClause = 'WHERE 1=1';
+    const params = [];
 
     if (category) {
-      filters.category = category;
+      whereClause += ' AND category = ?';
+      params.push(category);
     }
 
-    if (minPrice || maxPrice) {
-      filters.price = {};
-      if (minPrice) filters.price.$gte = parseFloat(minPrice);
-      if (maxPrice) filters.price.$lte = parseFloat(maxPrice);
+    if (minPrice) {
+      whereClause += ' AND price >= ?';
+      params.push(parseFloat(minPrice));
+    }
+
+    if (maxPrice) {
+      whereClause += ' AND price <= ?';
+      params.push(parseFloat(maxPrice));
     }
 
     if (available !== undefined) {
-      filters['availability.isAvailable'] = available === 'true';
-    }
-
-    if (featured !== undefined) {
-      filters.isFeatured = featured === 'true';
-    }
-
-    if (popular !== undefined) {
-      filters.isPopular = popular === 'true';
+      whereClause += ' AND is_available = ?';
+      params.push(available === 'true' ? 1 : 0);
     }
 
     if (search) {
-      filters.$text = { $search: search };
+      whereClause += ' AND (name LIKE ? OR description LIKE ?)';
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm);
     }
 
     // Construir ordenação
-    const sortOptions = {};
+    let orderClause = 'ORDER BY ';
     if (sort === 'price') {
-      sortOptions.price = order === 'desc' ? -1 : 1;
-    } else if (sort === 'rating') {
-      sortOptions['ratings.average'] = order === 'desc' ? -1 : 1;
-    } else if (sort === 'popularity') {
-      sortOptions['ratings.count'] = order === 'desc' ? -1 : 1;
+      orderClause += `price ${order === 'desc' ? 'DESC' : 'ASC'}`;
+    } else if (sort === 'created_at') {
+      orderClause += `created_at ${order === 'desc' ? 'DESC' : 'ASC'}`;
     } else {
-      sortOptions.name = order === 'desc' ? -1 : 1;
+      orderClause += `name ${order === 'desc' ? 'DESC' : 'ASC'}`;
     }
 
-    // Calcular skip para paginação
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // Calcular offset para paginação
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
     // Executar query
-    const products = await Product.find(filters)
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('relatedProducts', 'name images price');
+    const productsQuery = `
+      SELECT * FROM products 
+      ${whereClause} 
+      ${orderClause} 
+      LIMIT ? OFFSET ?
+    `;
+    
+    const products = db.prepare(productsQuery).all(...params, parseInt(limit), offset);
 
     // Contar total de produtos
-    const total = await Product.countDocuments(filters);
+    const countQuery = `SELECT COUNT(*) as total FROM products ${whereClause}`;
+    const totalResult = db.prepare(countQuery).get(...params);
+    const total = totalResult.total;
 
     // Calcular total de páginas
     const totalPages = Math.ceil(total / parseInt(limit));
@@ -104,13 +108,13 @@ router.get('/', validateProductFilters, validatePagination, async (req, res) => 
 });
 
 // @route   GET /api/products/:id
-// @desc    Obter produto por ID
+// @desc    Obter produto específico
 // @access  Public
-router.get('/:id', validateMongoId, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
-      .populate('relatedProducts', 'name images price category')
-      .populate('ratings.reviews.user', 'name');
+    const { id } = req.params;
+
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
 
     if (!product) {
       return res.status(404).json({
@@ -135,12 +139,43 @@ router.get('/:id', validateMongoId, async (req, res) => {
 });
 
 // @route   POST /api/products
-// @desc    Criar novo produto
-// @access  Private (Staff/Admin)
+// @desc    Criar novo produto (admin/staff)
+// @access  Private
 router.post('/', authenticateToken, requireStaff, validateProduct, async (req, res) => {
   try {
-    const product = new Product(req.body);
-    await product.save();
+    const {
+      name,
+      description,
+      price,
+      category,
+      imageUrl,
+      stockQuantity,
+      allergens,
+      nutritionalInfo,
+      preparationTime
+    } = req.body;
+
+    const stmt = db.prepare(`
+      INSERT INTO products (name, description, price, category, image_url, stock_quantity, allergens, nutritional_info, preparation_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      name,
+      description,
+      price,
+      category,
+      imageUrl,
+      stockQuantity || 0,
+      allergens || null,
+      nutritionalInfo || null,
+      preparationTime || null
+    );
+
+    const productId = result.lastInsertRowid;
+
+    // Buscar produto criado
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
 
     res.status(201).json({
       success: true,
@@ -151,14 +186,6 @@ router.post('/', authenticateToken, requireStaff, validateProduct, async (req, r
     });
   } catch (error) {
     console.error('Erro ao criar produto:', error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Produto com este nome já existe'
-      });
-    }
-
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -167,22 +194,57 @@ router.post('/', authenticateToken, requireStaff, validateProduct, async (req, r
 });
 
 // @route   PUT /api/products/:id
-// @desc    Atualizar produto
-// @access  Private (Staff/Admin)
-router.put('/:id', authenticateToken, requireStaff, validateMongoId, validateProduct, async (req, res) => {
+// @desc    Atualizar produto (admin/staff)
+// @access  Private
+router.put('/:id', authenticateToken, requireStaff, validateProduct, async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      price,
+      category,
+      imageUrl,
+      stockQuantity,
+      allergens,
+      nutritionalInfo,
+      preparationTime,
+      isAvailable
+    } = req.body;
 
-    if (!product) {
+    // Verificar se produto existe
+    const existingProduct = db.prepare('SELECT id FROM products WHERE id = ?').get(id);
+    if (!existingProduct) {
       return res.status(404).json({
         success: false,
         message: 'Produto não encontrado'
       });
     }
+
+    const stmt = db.prepare(`
+      UPDATE products 
+      SET name = ?, description = ?, price = ?, category = ?, image_url = ?, 
+          stock_quantity = ?, allergens = ?, nutritional_info = ?, preparation_time = ?, 
+          is_available = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      name,
+      description,
+      price,
+      category,
+      imageUrl,
+      stockQuantity || 0,
+      allergens || null,
+      nutritionalInfo || null,
+      preparationTime || null,
+      isAvailable !== undefined ? isAvailable : 1,
+      id
+    );
+
+    // Buscar produto atualizado
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
 
     res.json({
       success: true,
@@ -193,14 +255,6 @@ router.put('/:id', authenticateToken, requireStaff, validateMongoId, validatePro
     });
   } catch (error) {
     console.error('Erro ao atualizar produto:', error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Produto com este nome já existe'
-      });
-    }
-
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -209,69 +263,30 @@ router.put('/:id', authenticateToken, requireStaff, validateMongoId, validatePro
 });
 
 // @route   DELETE /api/products/:id
-// @desc    Eliminar produto
-// @access  Private (Admin)
-router.delete('/:id', authenticateToken, requireAdmin, validateMongoId, async (req, res) => {
-  try {
-    const product = await Product.findByIdAndDelete(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Produto não encontrado'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Produto eliminado com sucesso'
-    });
-  } catch (error) {
-    console.error('Erro ao eliminar produto:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   POST /api/products/:id/reviews
-// @desc    Adicionar review ao produto
+// @desc    Deletar produto (admin)
 // @access  Private
-router.post('/:id/reviews', authenticateToken, validateMongoId, async (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { rating, comment } = req.body;
+    const { id } = req.params;
 
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rating deve ser entre 1 e 5'
-      });
-    }
-
-    const product = await Product.findById(req.params.id);
-    if (!product) {
+    // Verificar se produto existe
+    const existingProduct = db.prepare('SELECT id FROM products WHERE id = ?').get(id);
+    if (!existingProduct) {
       return res.status(404).json({
         success: false,
         message: 'Produto não encontrado'
       });
     }
 
-    // Adicionar review
-    await product.addReview(req.user._id, rating, comment);
+    // Deletar produto
+    db.prepare('DELETE FROM products WHERE id = ?').run(id);
 
     res.json({
       success: true,
-      message: 'Review adicionado com sucesso',
-      data: {
-        product: {
-          _id: product._id,
-          ratings: product.ratings
-        }
-      }
+      message: 'Produto deletado com sucesso'
     });
   } catch (error) {
-    console.error('Erro ao adicionar review:', error);
+    console.error('Erro ao deletar produto:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -284,19 +299,12 @@ router.post('/:id/reviews', authenticateToken, validateMongoId, async (req, res)
 // @access  Public
 router.get('/categories/all', async (req, res) => {
   try {
-    const categories = await Product.distinct('category');
-    
-    const categoryStats = await Promise.all(
-      categories.map(async (category) => {
-        const count = await Product.countDocuments({ category });
-        return { category, count };
-      })
-    );
+    const categories = db.prepare('SELECT DISTINCT category FROM products WHERE is_available = 1 ORDER BY category').all();
 
     res.json({
       success: true,
       data: {
-        categories: categoryStats
+        categories: categories.map(cat => cat.category)
       }
     });
   } catch (error) {
@@ -308,19 +316,24 @@ router.get('/categories/all', async (req, res) => {
   }
 });
 
-// @route   GET /api/products/featured
-// @desc    Obter produtos em destaque
+// @route   GET /api/products/featured/random
+// @desc    Obter produtos em destaque aleatórios
 // @access  Public
-router.get('/featured/list', async (req, res) => {
+router.get('/featured/random', async (req, res) => {
   try {
-    const featuredProducts = await Product.find({ isFeatured: true })
-      .limit(10)
-      .select('name images price category ratings');
+    const { limit = 6 } = req.query;
+
+    const products = db.prepare(`
+      SELECT * FROM products 
+      WHERE is_available = 1 
+      ORDER BY RANDOM() 
+      LIMIT ?
+    `).all(parseInt(limit));
 
     res.json({
       success: true,
       data: {
-        products: featuredProducts
+        products
       }
     });
   } catch (error) {
@@ -332,205 +345,40 @@ router.get('/featured/list', async (req, res) => {
   }
 });
 
-// @route   GET /api/products/popular
-// @desc    Obter produtos populares
-// @access  Public
-router.get('/popular/list', async (req, res) => {
+// @route   POST /api/products/:id/toggle-availability
+// @desc    Alternar disponibilidade do produto (admin/staff)
+// @access  Private
+router.post('/:id/toggle-availability', authenticateToken, requireStaff, async (req, res) => {
   try {
-    const popularProducts = await Product.find({ isPopular: true })
-      .sort({ 'ratings.average': -1, 'ratings.count': -1 })
-      .limit(10)
-      .select('name images price category ratings');
+    const { id } = req.params;
 
-    res.json({
-      success: true,
-      data: {
-        products: popularProducts
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao obter produtos populares:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   GET /api/products/search
-// @desc    Pesquisar produtos
-// @access  Public
-router.get('/search/query', async (req, res) => {
-  try {
-    const { q, limit = 10 } = req.query;
-
-    if (!q) {
-      return res.status(400).json({
-        success: false,
-        message: 'Termo de pesquisa é obrigatório'
-      });
-    }
-
-    const products = await Product.find(
-      { $text: { $search: q } },
-      { score: { $meta: 'textScore' } }
-    )
-      .sort({ score: { $meta: 'textScore' } })
-      .limit(parseInt(limit))
-      .select('name images price category ratings');
-
-    res.json({
-      success: true,
-      data: {
-        products,
-        searchTerm: q,
-        totalResults: products.length
-      }
-    });
-  } catch (error) {
-    console.error('Erro na pesquisa:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   GET /api/products/seasonal
-// @desc    Obter produtos sazonais
-// @access  Public
-router.get('/seasonal/list', async (req, res) => {
-  try {
-    const now = new Date();
-    const seasonalProducts = await Product.find({
-      isSeasonal: true,
-      'seasonalPeriod.start': { $lte: now },
-      'seasonalPeriod.end': { $gte: now }
-    })
-      .select('name images price category seasonalPeriod');
-
-    res.json({
-      success: true,
-      data: {
-        products: seasonalProducts
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao obter produtos sazonais:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   POST /api/products/:id/toggle-featured
-// @desc    Alternar status de destaque do produto
-// @access  Private (Staff/Admin)
-router.post('/:id/toggle-featured', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    
-    if (!product) {
+    // Verificar se produto existe
+    const existingProduct = db.prepare('SELECT id, is_available FROM products WHERE id = ?').get(id);
+    if (!existingProduct) {
       return res.status(404).json({
         success: false,
         message: 'Produto não encontrado'
       });
     }
 
-    product.isFeatured = !product.isFeatured;
-    await product.save();
-
-    res.json({
-      success: true,
-      message: `Produto ${product.isFeatured ? 'adicionado' : 'removido'} dos destaques`,
-      data: {
-        product: {
-          _id: product._id,
-          isFeatured: product.isFeatured
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao alternar destaque:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   POST /api/products/:id/toggle-popular
-// @desc    Alternar status de popular do produto
-// @access  Private (Staff/Admin)
-router.post('/:id/toggle-popular', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
+    // Alternar disponibilidade
+    const newAvailability = existingProduct.is_available ? 0 : 1;
     
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Produto não encontrado'
-      });
-    }
-
-    product.isPopular = !product.isPopular;
-    await product.save();
+    db.prepare(`
+      UPDATE products 
+      SET is_available = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).run(newAvailability, id);
 
     res.json({
       success: true,
-      message: `Produto ${product.isPopular ? 'marcado' : 'desmarcado'} como popular`,
+      message: `Produto ${newAvailability ? 'ativado' : 'desativado'} com sucesso`,
       data: {
-        product: {
-          _id: product._id,
-          isPopular: product.isPopular
-        }
+        isAvailable: newAvailability === 1
       }
     });
   } catch (error) {
-    console.error('Erro ao alternar popular:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   GET /api/products/availability/check
-// @desc    Verificar disponibilidade de produtos
-// @access  Public
-router.get('/availability/check', async (req, res) => {
-  try {
-    const { productIds } = req.query;
-
-    if (!productIds) {
-      return res.status(400).json({
-        success: false,
-        message: 'IDs dos produtos são obrigatórios'
-      });
-    }
-
-    const ids = productIds.split(',');
-    const products = await Product.find({
-      _id: { $in: ids }
-    }).select('_id name availability isAvailable stockQuantity');
-
-    const availability = products.map(product => ({
-      _id: product._id,
-      name: product.name,
-      isAvailable: product.isAvailableNow(),
-      stockQuantity: product.availability.stockQuantity,
-      availableNow: product.isAvailableNow()
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        availability
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao verificar disponibilidade:', error);
+    console.error('Erro ao alternar disponibilidade:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'

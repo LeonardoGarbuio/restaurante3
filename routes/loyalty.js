@@ -1,8 +1,7 @@
 const express = require('express');
-const Loyalty = require('../models/Loyalty');
-const User = require('../models/User');
-const { authenticateToken, requireLoyaltyOwnershipOrStaff, requireStaff, requireAdmin } = require('../middleware/auth');
-const { validateLoyaltyPoints, validateMongoId } = require('../middleware/validation');
+const db = require('../config/database');
+const { authenticateToken, requireStaff, requireAdmin } = require('../middleware/auth');
+const { validateLoyaltyPoints, validatePagination } = require('../middleware/validation');
 
 const router = express.Router();
 
@@ -11,35 +10,35 @@ const router = express.Router();
 // @access  Private
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    let loyalty = await Loyalty.findOne({ user: req.user._id });
-
-    if (!loyalty) {
-      // Criar perfil de fidelidade se não existir
-      loyalty = new Loyalty({
-        user: req.user._id
+    const user = db.prepare('SELECT id, name, loyalty_points, loyalty_tier FROM users WHERE id = ?').get(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
       });
-      await loyalty.save();
     }
 
-    // Buscar usuário para informações adicionais
-    const user = await User.findById(req.user._id).select('name email');
+    // Calcular próximo tier
+    let nextTier = null;
+    let pointsToNextTier = 0;
+
+    if (user.loyalty_tier === 'bronze') {
+      nextTier = 'silver';
+      pointsToNextTier = 100 - user.loyalty_points;
+    } else if (user.loyalty_tier === 'silver') {
+      nextTier = 'gold';
+      pointsToNextTier = 250 - user.loyalty_points;
+    }
 
     res.json({
       success: true,
       data: {
-        loyalty: {
-          _id: loyalty._id,
-          points: loyalty.points,
-          tier: loyalty.tier.current,
-          tierInPortuguese: loyalty.getTierInPortuguese(),
-          benefits: loyalty.benefits,
-          nextTier: loyalty.getNextTier(),
-          progressToNextTier: loyalty.getProgressToNextTier(),
-          statistics: loyalty.statistics
-        },
-        user: {
-          name: user.name,
-          email: user.email
+        profile: {
+          currentTier: user.loyalty_tier,
+          currentPoints: user.loyalty_points,
+          nextTier,
+          pointsToNextTier: Math.max(0, pointsToNextTier)
         }
       }
     });
@@ -55,26 +54,21 @@ router.get('/profile', authenticateToken, async (req, res) => {
 // @route   GET /api/loyalty/transactions
 // @desc    Obter histórico de transações de fidelidade
 // @access  Private
-router.get('/transactions', authenticateToken, async (req, res) => {
+router.get('/transactions', authenticateToken, validatePagination, async (req, res) => {
   try {
-    const loyalty = await Loyalty.findOne({ user: req.user._id });
-    
-    if (!loyalty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Perfil de fidelidade não encontrado'
-      });
-    }
-
     const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Paginar transações
-    const transactions = loyalty.transactions
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(skip, skip + parseInt(limit));
+    const transactions = db.prepare(`
+      SELECT * FROM loyalty_transactions 
+      WHERE user_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT ? OFFSET ?
+    `).all(req.user.id, parseInt(limit), offset);
 
-    const total = loyalty.transactions.length;
+    // Contar total de transações
+    const totalResult = db.prepare('SELECT COUNT(*) as total FROM loyalty_transactions WHERE user_id = ?').get(req.user.id);
+    const total = totalResult.total;
     const totalPages = Math.ceil(total / parseInt(limit));
 
     res.json({
@@ -104,25 +98,12 @@ router.get('/transactions', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/rewards', authenticateToken, async (req, res) => {
   try {
-    const loyalty = await Loyalty.findOne({ user: req.user._id });
-    
-    if (!loyalty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Perfil de fidelidade não encontrado'
-      });
-    }
-
-    // Filtrar recompensas ativas
-    const activeRewards = loyalty.rewards.filter(reward => 
-      reward.isActive && (!reward.expiresAt || reward.expiresAt > new Date())
-    );
+    const rewards = db.prepare('SELECT * FROM loyalty_rewards WHERE is_active = 1 ORDER BY points_required ASC').all();
 
     res.json({
       success: true,
       data: {
-        rewards: activeRewards,
-        availablePoints: loyalty.points.current
+        rewards
       }
     });
   } catch (error) {
@@ -139,25 +120,12 @@ router.get('/rewards', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/goals', authenticateToken, async (req, res) => {
   try {
-    const loyalty = await Loyalty.findOne({ user: req.user._id });
-    
-    if (!loyalty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Perfil de fidelidade não encontrado'
-      });
-    }
-
-    // Filtrar metas ativas
-    const activeGoals = loyalty.goals.filter(goal => 
-      !goal.isCompleted && (!goal.expiresAt || goal.expiresAt > new Date())
-    );
+    const goals = db.prepare('SELECT * FROM loyalty_goals WHERE is_active = 1 ORDER BY points_target ASC').all();
 
     res.json({
       success: true,
       data: {
-        goals: activeGoals,
-        completedGoals: loyalty.goals.filter(goal => goal.isCompleted)
+        goals
       }
     });
   } catch (error) {
@@ -174,35 +142,59 @@ router.get('/goals', authenticateToken, async (req, res) => {
 // @access  Private
 router.post('/use-points', authenticateToken, validateLoyaltyPoints, async (req, res) => {
   try {
-    const { points, description, orderId } = req.body;
+    const { points, description } = req.body;
 
-    const loyalty = await Loyalty.findOne({ user: req.user._id });
-    if (!loyalty) {
+    // Verificar se o usuário tem pontos suficientes
+    const user = db.prepare('SELECT loyalty_points FROM users WHERE id = ?').get(req.user.id);
+    
+    if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Perfil de fidelidade não encontrado'
+        message: 'Usuário não encontrado'
       });
     }
 
-    if (!loyalty.canUsePoints(points)) {
+    if (user.loyalty_points < points) {
       return res.status(400).json({
         success: false,
         message: 'Pontos insuficientes'
       });
     }
 
-    // Usar pontos
-    await loyalty.usePoints(points, description, orderId);
+    // Registrar transação
+    const stmt = db.prepare(`
+      INSERT INTO loyalty_transactions (user_id, points, type, description)
+      VALUES (?, ?, 'used', ?)
+    `);
+
+    stmt.run(req.user.id, -points, description || 'Pontos utilizados');
+
+    // Atualizar pontos do usuário
+    db.prepare('UPDATE users SET loyalty_points = loyalty_points - ? WHERE id = ?').run(points, req.user.id);
+
+    // Atualizar tier se necessário
+    const updatedUser = db.prepare('SELECT loyalty_points, loyalty_tier FROM users WHERE id = ?').get(req.user.id);
+    
+    let newTier = updatedUser.loyalty_tier;
+    if (updatedUser.loyalty_points < 100 && updatedUser.loyalty_tier !== 'bronze') {
+      newTier = 'bronze';
+    } else if (updatedUser.loyalty_points < 250 && updatedUser.loyalty_tier !== 'silver') {
+      newTier = 'silver';
+    } else if (updatedUser.loyalty_points >= 250 && updatedUser.loyalty_tier !== 'gold') {
+      newTier = 'gold';
+    }
+
+    if (newTier !== updatedUser.loyalty_tier) {
+      db.prepare('UPDATE users SET loyalty_tier = ? WHERE id = ?').run(newTier, req.user.id);
+    }
 
     res.json({
       success: true,
       message: 'Pontos utilizados com sucesso',
       data: {
-        loyalty: {
-          points: loyalty.points.current,
-          tier: loyalty.tier.current,
-          tierInPortuguese: loyalty.getTierInPortuguese()
-        }
+        pointsUsed: points,
+        remainingPoints: updatedUser.loyalty_points,
+        currentTier: newTier
       }
     });
   } catch (error) {
@@ -217,19 +209,13 @@ router.post('/use-points', authenticateToken, validateLoyaltyPoints, async (req,
 // @route   POST /api/loyalty/admin/add-points
 // @desc    Adicionar pontos de fidelidade (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.post('/admin/add-points', authenticateToken, requireStaff, async (req, res) => {
+router.post('/admin/add-points', authenticateToken, requireStaff, validateLoyaltyPoints, async (req, res) => {
   try {
-    const { userId, points, description, expiresIn } = req.body;
-
-    if (!userId || !points || !description) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID do usuário, pontos e descrição são obrigatórios'
-      });
-    }
+    const { userId, points, type, description } = req.body;
 
     // Verificar se o usuário existe
-    const user = await User.findById(userId);
+    const user = db.prepare('SELECT id, loyalty_points FROM users WHERE id = ?').get(userId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -237,29 +223,36 @@ router.post('/admin/add-points', authenticateToken, requireStaff, async (req, re
       });
     }
 
-    // Buscar ou criar perfil de fidelidade
-    let loyalty = await Loyalty.findOne({ user: userId });
-    if (!loyalty) {
-      loyalty = new Loyalty({ user: userId });
+    // Registrar transação
+    const stmt = db.prepare(`
+      INSERT INTO loyalty_transactions (user_id, points, type, description)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    stmt.run(userId, points, type || 'bonus', description || 'Pontos adicionados por staff');
+
+    // Atualizar pontos do usuário
+    const newPoints = user.loyalty_points + points;
+    db.prepare('UPDATE users SET loyalty_points = ? WHERE id = ?').run(newPoints, userId);
+
+    // Atualizar tier se necessário
+    let newTier = 'bronze';
+    if (newPoints >= 250) {
+      newTier = 'gold';
+    } else if (newPoints >= 100) {
+      newTier = 'silver';
     }
 
-    // Adicionar pontos
-    await loyalty.addPoints(points, description, null, expiresIn);
+    db.prepare('UPDATE users SET loyalty_tier = ? WHERE id = ?').run(newTier, userId);
 
     res.json({
       success: true,
       message: 'Pontos adicionados com sucesso',
       data: {
-        loyalty: {
-          _id: loyalty._id,
-          points: loyalty.points.current,
-          tier: loyalty.tier.current,
-          tierInPortuguese: loyalty.getTierInPortuguese()
-        },
-        user: {
-          name: user.name,
-          email: user.email
-        }
+        userId,
+        pointsAdded: points,
+        newTotal: newPoints,
+        newTier
       }
     });
   } catch (error) {
@@ -271,22 +264,15 @@ router.post('/admin/add-points', authenticateToken, requireStaff, async (req, re
   }
 });
 
-// @route   POST /api/loyalty/admin/adjust-points
-// @desc    Ajustar pontos de fidelidade (Admin)
-// @access  Private (Admin)
-router.post('/admin/adjust-points', authenticateToken, requireAdmin, async (req, res) => {
+// @route   GET /api/loyalty/admin/user/:userId
+// @desc    Obter perfil de fidelidade de um usuário (Admin/Staff)
+// @access  Private (Staff/Admin)
+router.get('/admin/user/:userId', authenticateToken, requireStaff, async (req, res) => {
   try {
-    const { userId, points, description, reason } = req.body;
+    const { userId } = req.params;
 
-    if (!userId || !points || !description || !reason) {
-      return res.status(400).json({
-        success: false,
-        message: 'Todos os campos são obrigatórios'
-      });
-    }
-
-    // Verificar se o usuário existe
-    const user = await User.findById(userId);
+    const user = db.prepare('SELECT id, name, loyalty_points, loyalty_tier FROM users WHERE id = ?').get(userId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -294,93 +280,24 @@ router.post('/admin/adjust-points', authenticateToken, requireAdmin, async (req,
       });
     }
 
-    // Buscar perfil de fidelidade
-    const loyalty = await Loyalty.findOne({ user: userId });
-    if (!loyalty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Perfil de fidelidade não encontrado'
-      });
-    }
-
-    // Adicionar transação de ajuste
-    const transaction = {
-      type: 'adjustment',
-      amount: points,
-      description: `${description} - ${reason}`,
-      createdAt: new Date()
-    };
-
-    loyalty.transactions.push(transaction);
-    loyalty.points.current += points;
-    loyalty.points.total += points;
-
-    // Atualizar tier se necessário
-    loyalty.updateTier();
-
-    await loyalty.save();
+    // Obter transações recentes
+    const recentTransactions = db.prepare(`
+      SELECT * FROM loyalty_transactions 
+      WHERE user_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT 10
+    `).all(userId);
 
     res.json({
       success: true,
-      message: 'Pontos ajustados com sucesso',
       data: {
-        loyalty: {
-          _id: loyalty._id,
-          points: loyalty.points.current,
-          tier: loyalty.tier.current,
-          tierInPortuguese: loyalty.getTierInPortuguese()
-        },
         user: {
+          id: user.id,
           name: user.name,
-          email: user.email
+          loyaltyPoints: user.loyalty_points,
+          loyaltyTier: user.loyalty_tier
         },
-        adjustment: {
-          points,
-          reason,
-          newTotal: loyalty.points.current
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao ajustar pontos:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   GET /api/loyalty/admin/user/:userId
-// @desc    Obter perfil de fidelidade de um usuário (Admin/Staff)
-// @access  Private (Staff/Admin)
-router.get('/admin/user/:userId', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const loyalty = await Loyalty.findOne({ user: userId });
-    if (!loyalty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Perfil de fidelidade não encontrado'
-      });
-    }
-
-    const user = await User.findById(userId).select('name email phone');
-
-    res.json({
-      success: true,
-      data: {
-        loyalty: {
-          _id: loyalty._id,
-          points: loyalty.points,
-          tier: loyalty.tier,
-          benefits: loyalty.benefits,
-          statistics: loyalty.statistics,
-          transactions: loyalty.transactions.slice(-10), // Últimas 10 transações
-          rewards: loyalty.rewards,
-          goals: loyalty.goals
-        },
-        user
+        recentTransactions
       }
     });
   } catch (error) {
@@ -397,60 +314,40 @@ router.get('/admin/user/:userId', authenticateToken, requireStaff, validateMongo
 // @access  Private (Staff/Admin)
 router.get('/admin/stats/summary', authenticateToken, requireStaff, async (req, res) => {
   try {
-    // Estatísticas gerais
-    const totalUsers = await Loyalty.countDocuments();
-    const totalPoints = await Loyalty.aggregate([
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$points.current' }
-        }
-      }
-    ]);
+    // Total de usuários por tier
+    const tierStats = db.prepare(`
+      SELECT loyalty_tier, COUNT(*) as count 
+      FROM users 
+      GROUP BY loyalty_tier
+    `).all();
 
-    // Distribuição por tier
-    const tierDistribution = await Loyalty.aggregate([
-      {
-        $group: {
-          _id: '$tier.current',
-          count: { $sum: 1 },
-          totalPoints: { $sum: '$points.current' }
-        }
-      }
-    ]);
+    // Total de pontos distribuídos
+    const totalPointsResult = db.prepare('SELECT SUM(loyalty_points) as total FROM users').get();
+    const totalPoints = totalPointsResult.total || 0;
 
-    // Top usuários por pontos
-    const topUsers = await Loyalty.find()
-      .sort({ 'points.current': -1 })
-      .limit(10)
-      .populate('user', 'name email')
-      .select('points.current tier.current user');
+    // Transações do mês
+    const monthlyTransactions = db.prepare(`
+      SELECT COUNT(*) as count, SUM(points) as total 
+      FROM loyalty_transactions 
+      WHERE created_at >= date('now', 'start of month')
+    `).get();
 
-    // Estatísticas de transações
-    const transactionStats = await Loyalty.aggregate([
-      {
-        $unwind: '$transactions'
-      },
-      {
-        $group: {
-          _id: '$transactions.type',
-          count: { $sum: 1 },
-          totalPoints: { $sum: '$transactions.amount' }
-        }
-      }
-    ]);
+    // Usuários ativos (com pontos > 0)
+    const activeUsersResult = db.prepare('SELECT COUNT(*) as count FROM users WHERE loyalty_points > 0').get();
+    const activeUsers = activeUsersResult.count;
 
     res.json({
       success: true,
       data: {
         summary: {
-          totalUsers,
-          totalPoints: totalPoints[0]?.total || 0,
-          averagePoints: totalPoints[0]?.total / totalUsers || 0
-        },
-        tierDistribution,
-        topUsers,
-        transactionStats
+          tierDistribution: tierStats,
+          totalPoints,
+          monthlyTransactions: {
+            count: monthlyTransactions.count,
+            total: monthlyTransactions.total || 0
+          },
+          activeUsers
+        }
       }
     });
   } catch (error) {
@@ -462,42 +359,35 @@ router.get('/admin/stats/summary', authenticateToken, requireStaff, async (req, 
   }
 });
 
-// @route   POST /api/loyalty/admin/create-reward
+// @route   POST /api/loyalty/admin/rewards
 // @desc    Criar nova recompensa (Admin)
 // @access  Private (Admin)
-router.post('/admin/create-reward', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/admin/rewards', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, description, pointsCost, discountAmount, discountPercentage, freeProduct } = req.body;
+    const { name, description, pointsRequired, discountPercentage, discountAmount } = req.body;
 
-    if (!name || !pointsCost) {
+    if (!name || !pointsRequired) {
       return res.status(400).json({
         success: false,
-        message: 'Nome e custo em pontos são obrigatórios'
+        message: 'Nome e pontos necessários são obrigatórios'
       });
     }
 
-    // Criar recompensa global (será aplicada a todos os usuários)
-    const reward = {
-      name,
-      description,
-      pointsCost: parseInt(pointsCost),
-      discountAmount: discountAmount ? parseFloat(discountAmount) : undefined,
-      discountPercentage: discountPercentage ? parseFloat(discountPercentage) : undefined,
-      freeProduct: freeProduct || undefined,
-      isActive: true
-    };
+    const stmt = db.prepare(`
+      INSERT INTO loyalty_rewards (name, description, points_required, discount_percentage, discount_amount)
+      VALUES (?, ?, ?, ?, ?)
+    `);
 
-    // Aplicar a todos os usuários
-    await Loyalty.updateMany(
-      {},
-      { $push: { rewards: reward } }
-    );
+    const result = stmt.run(name, description, pointsRequired, discountPercentage || null, discountAmount || null);
+    const rewardId = result.lastInsertRowid;
 
-    res.json({
+    const newReward = db.prepare('SELECT * FROM loyalty_rewards WHERE id = ?').get(rewardId);
+
+    res.status(201).json({
       success: true,
       message: 'Recompensa criada com sucesso',
       data: {
-        reward
+        reward: newReward
       }
     });
   } catch (error) {
@@ -509,85 +399,39 @@ router.post('/admin/create-reward', authenticateToken, requireAdmin, async (req,
   }
 });
 
-// @route   POST /api/loyalty/admin/create-goal
-// @desc    Criar nova meta (Admin)
+// @route   POST /api/loyalty/admin/goals
+// @desc    Criar nova meta de fidelidade (Admin)
 // @access  Private (Admin)
-router.post('/admin/create-goal', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/admin/goals', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, description, targetPoints, reward, expiresIn } = req.body;
+    const { name, description, pointsTarget, rewardDescription } = req.body;
 
-    if (!name || !targetPoints || !reward) {
+    if (!name || !pointsTarget) {
       return res.status(400).json({
         success: false,
-        message: 'Nome, pontos alvo e recompensa são obrigatórios'
+        message: 'Nome e pontos alvo são obrigatórios'
       });
     }
 
-    // Criar meta global
-    const goal = {
-      name,
-      description,
-      targetPoints: parseInt(targetPoints),
-      reward,
-      expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) : undefined,
-      isCompleted: false
-    };
+    const stmt = db.prepare(`
+      INSERT INTO loyalty_goals (name, description, points_target, reward_description)
+      VALUES (?, ?, ?, ?)
+    `);
 
-    // Aplicar a todos os usuários
-    await Loyalty.updateMany(
-      {},
-      { $push: { goals: goal } }
-    );
+    const result = stmt.run(name, description, pointsTarget, rewardDescription || null);
+    const goalId = result.lastInsertRowid;
 
-    res.json({
+    const newGoal = db.prepare('SELECT * FROM loyalty_goals WHERE id = ?').get(goalId);
+
+    res.status(201).json({
       success: true,
       message: 'Meta criada com sucesso',
       data: {
-        goal
+        goal: newGoal
       }
     });
   } catch (error) {
     console.error('Erro ao criar meta:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   PUT /api/loyalty/preferences
-// @desc    Atualizar preferências de fidelidade
-// @access  Private
-router.put('/preferences', authenticateToken, async (req, res) => {
-  try {
-    const { emailNotifications, smsNotifications, pushNotifications, marketingEmails, birthdayRewards } = req.body;
-
-    const loyalty = await Loyalty.findOne({ user: req.user._id });
-    if (!loyalty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Perfil de fidelidade não encontrado'
-      });
-    }
-
-    // Atualizar preferências
-    if (emailNotifications !== undefined) loyalty.preferences.emailNotifications = emailNotifications;
-    if (smsNotifications !== undefined) loyalty.preferences.smsNotifications = smsNotifications;
-    if (pushNotifications !== undefined) loyalty.preferences.pushNotifications = pushNotifications;
-    if (marketingEmails !== undefined) loyalty.preferences.marketingEmails = marketingEmails;
-    if (birthdayRewards !== undefined) loyalty.preferences.birthdayRewards = birthdayRewards;
-
-    await loyalty.save();
-
-    res.json({
-      success: true,
-      message: 'Preferências atualizadas com sucesso',
-      data: {
-        preferences: loyalty.preferences
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao atualizar preferências:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'

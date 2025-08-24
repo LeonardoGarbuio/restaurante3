@@ -1,109 +1,137 @@
 const express = require('express');
-const Order = require('../models/Order');
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-const Loyalty = require('../models/Loyalty');
-const { authenticateToken, requireOrderOwnershipOrStaff, requireStaff, requireAdmin } = require('../middleware/auth');
-const { validateOrder, validateMongoId, validatePagination, validateOrderFilters } = require('../middleware/validation');
+const db = require('../config/database');
+const { authenticateToken, requireStaff, requireAdmin, requireOwnershipOrAdmin } = require('../middleware/auth');
+const { validateOrder, validatePagination } = require('../middleware/validation');
 
 const router = express.Router();
 
-// @route   POST /api/orders/create
-// @desc    Criar pedido a partir do carrinho
+// @route   POST /api/orders
+// @desc    Criar novo pedido
 // @access  Private
-router.post('/create', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, validateOrder, async (req, res) => {
   try {
-    const { customerNotes, source = 'website' } = req.body;
+    const {
+      deliveryType,
+      deliveryAddress,
+      deliveryInstructions,
+      preferredTime,
+      specificTime,
+      paymentMethod,
+      customerNotes,
+      items
+    } = req.body;
 
-    // Buscar carrinho do usuário
-    const cart = await Cart.findOne({ user: req.user._id })
-      .populate('items.product', 'name price availability');
-
-    if (!cart || cart.isEmpty()) {
+    if (!items || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Carrinho está vazio'
       });
     }
 
-    // Validar carrinho
-    const validationErrors = [];
-    for (const item of cart.items) {
-      const product = item.product;
-      if (!product.isAvailableNow()) {
-        validationErrors.push(`${product.name} não está disponível`);
-      }
-    }
+    // Gerar número do pedido
+    const orderNumber = `SP${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Alguns produtos não estão disponíveis',
-        errors: validationErrors
+    // Calcular totais
+    let subtotal = 0;
+    const orderItems = [];
+
+    for (const item of items) {
+      const product = db.prepare('SELECT id, name, price, is_available FROM products WHERE id = ?').get(item.productId);
+      
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: `Produto ${item.productId} não encontrado`
+        });
+      }
+
+      if (!product.is_available) {
+        return res.status(400).json({
+          success: false,
+          message: `Produto ${product.name} não está disponível`
+        });
+      }
+
+      const itemTotal = item.quantity * product.price;
+      subtotal += itemTotal;
+
+      orderItems.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        totalPrice: itemTotal,
+        specialInstructions: item.specialInstructions,
+        customization: item.customization
       });
     }
 
-    // Criar pedido
-    const order = new Order({
-      user: req.user._id,
-      items: cart.items.map(item => ({
-        product: item.product._id,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice,
-        specialInstructions: item.specialInstructions,
-        customization: item.customization
-      })),
-      delivery: {
-        type: cart.delivery.type,
-        address: cart.delivery.address,
-        instructions: cart.delivery.instructions,
-        preferredTime: cart.delivery.preferredTime,
-        specificTime: cart.delivery.specificTime,
-        deliveryFee: cart.delivery.deliveryFee
-      },
-      payment: {
-        method: cart.payment.method,
-        amount: cart.totals.subtotal,
-        tax: cart.totals.tax,
-        discount: cart.totals.discount,
-        loyaltyDiscount: cart.totals.loyaltyDiscount,
-        finalAmount: cart.totals.total
-      },
-      customerNotes,
-      source
-    });
+    const deliveryFee = deliveryType === 'delivery' ? 2.50 : 0;
+    const tax = subtotal * 0.23; // IVA 23%
+    const finalAmount = subtotal + deliveryFee + tax;
 
-    // Calcular total
-    order.calculateTotal();
+    // Inserir pedido
+    const orderStmt = db.prepare(`
+      INSERT INTO orders (
+        order_number, user_id, delivery_type, delivery_street, delivery_city, 
+        delivery_postal_code, delivery_instructions, preferred_time, specific_time,
+        payment_method, subtotal, tax, delivery_fee, final_amount, customer_notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-    // Calcular pontos de fidelidade
-    order.calculateLoyaltyPoints();
+    const orderResult = orderStmt.run(
+      orderNumber,
+      req.user.id,
+      deliveryType,
+      deliveryAddress?.street || '',
+      deliveryAddress?.city || '',
+      deliveryAddress?.postalCode || '',
+      deliveryInstructions || null,
+      preferredTime || 'asap',
+      specificTime || null,
+      paymentMethod,
+      subtotal,
+      tax,
+      deliveryFee,
+      finalAmount,
+      customerNotes || null
+    );
 
-    // Aplicar desconto de fidelidade se aplicável
-    const loyalty = await Loyalty.findOne({ user: req.user._id });
-    if (loyalty) {
-      const discountPercentage = loyalty.getLoyaltyDiscount();
-      if (discountPercentage > 0) {
-        order.applyLoyaltyDiscount(discountPercentage);
-      }
+    const orderId = orderResult.lastInsertRowid;
+
+    // Inserir itens do pedido
+    const itemStmt = db.prepare(`
+      INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price, special_instructions, customization)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const item of orderItems) {
+      itemStmt.run(
+        orderId,
+        item.productId,
+        item.quantity,
+        item.unitPrice,
+        item.totalPrice,
+        item.specialInstructions || null,
+        item.customization || null
+      );
     }
 
-    await order.save();
-
     // Limpar carrinho
-    await cart.clearCart();
+    db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(req.user.id);
 
-    // Buscar pedido com produtos populados
-    const populatedOrder = await Order.findById(order._id)
-      .populate('user', 'name email phone')
-      .populate('items.product', 'name images price');
+    // Buscar pedido criado
+    const order = db.prepare(`
+      SELECT o.*, u.name as customer_name, u.email as customer_email, u.phone as customer_phone
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      WHERE o.id = ?
+    `).get(orderId);
 
     res.status(201).json({
       success: true,
       message: 'Pedido criado com sucesso',
       data: {
-        order: populatedOrder
+        order
       }
     });
   } catch (error) {
@@ -118,48 +146,35 @@ router.post('/create', authenticateToken, async (req, res) => {
 // @route   GET /api/orders
 // @desc    Obter pedidos do usuário
 // @access  Private
-router.get('/', authenticateToken, validateOrderFilters, validatePagination, async (req, res) => {
+router.get('/', authenticateToken, validatePagination, async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      startDate,
-      endDate,
-      deliveryType
-    } = req.query;
+    const { page = 1, limit = 20, status } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Construir filtros
-    const filters = { user: req.user._id };
+    // Construir query
+    let whereClause = 'WHERE o.user_id = ?';
+    const params = [req.user.id];
 
     if (status) {
-      filters['status.current'] = status;
+      whereClause += ' AND o.status = ?';
+      params.push(status);
     }
 
-    if (startDate || endDate) {
-      filters['timing.orderPlaced'] = {};
-      if (startDate) filters['timing.orderPlaced'].$gte = new Date(startDate);
-      if (endDate) filters['timing.orderPlaced'].$lte = new Date(endDate);
-    }
+    const ordersQuery = `
+      SELECT o.*, u.name as customer_name
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      ${whereClause}
+      ORDER BY o.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
 
-    if (deliveryType) {
-      filters['delivery.type'] = deliveryType;
-    }
-
-    // Calcular skip para paginação
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Executar query
-    const orders = await Order.find(filters)
-      .sort({ 'timing.orderPlaced': -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('items.product', 'name images price');
+    const orders = db.prepare(ordersQuery).all(...params, parseInt(limit), offset);
 
     // Contar total de pedidos
-    const total = await Order.countDocuments(filters);
-
-    // Calcular total de páginas
+    const countQuery = `SELECT COUNT(*) as total FROM orders o ${whereClause}`;
+    const totalResult = db.prepare(countQuery).get(...params);
+    const total = totalResult.total;
     const totalPages = Math.ceil(total / parseInt(limit));
 
     res.json({
@@ -184,15 +199,19 @@ router.get('/', authenticateToken, validateOrderFilters, validatePagination, asy
   }
 });
 
-// @route   GET /api/orders/:id
-// @desc    Obter pedido por ID
+// @route   GET /api/orders/:orderId
+// @desc    Obter pedido específico
 // @access  Private
-router.get('/:id', authenticateToken, requireOrderOwnershipOrStaff, validateMongoId, async (req, res) => {
+router.get('/:orderId', authenticateToken, requireOwnershipOrAdmin, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
-      .populate('user', 'name email phone address')
-      .populate('items.product', 'name images price category')
-      .populate('status.history.updatedBy', 'name');
+    const { orderId } = req.params;
+
+    const order = db.prepare(`
+      SELECT o.*, u.name as customer_name, u.email as customer_email, u.phone as customer_phone
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      WHERE o.id = ?
+    `).get(orderId);
 
     if (!order) {
       return res.status(404).json({
@@ -201,10 +220,31 @@ router.get('/:id', authenticateToken, requireOrderOwnershipOrStaff, validateMong
       });
     }
 
+    // Obter itens do pedido
+    const orderItems = db.prepare(`
+      SELECT oi.*, p.name as product_name, p.image_url
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ?
+    `).all(orderId);
+
+    // Obter histórico de status
+    const statusHistory = db.prepare(`
+      SELECT osh.*, u.name as updated_by_name
+      FROM order_status_history osh
+      LEFT JOIN users u ON osh.updated_by = u.id
+      WHERE osh.order_id = ?
+      ORDER BY osh.timestamp DESC
+    `).all(orderId);
+
     res.json({
       success: true,
       data: {
-        order
+        order: {
+          ...order,
+          items: orderItems,
+          statusHistory
+        }
       }
     });
   } catch (error) {
@@ -216,21 +256,16 @@ router.get('/:id', authenticateToken, requireOrderOwnershipOrStaff, validateMong
   }
 });
 
-// @route   PUT /api/orders/:id/status
-// @desc    Atualizar status do pedido
+// @route   PUT /api/orders/:orderId/status
+// @desc    Atualizar status do pedido (Staff/Admin)
 // @access  Private (Staff/Admin)
-router.put('/:id/status', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
+router.put('/:orderId/status', authenticateToken, requireStaff, async (req, res) => {
   try {
+    const { orderId } = req.params;
     const { status, note } = req.body;
 
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: 'Status é obrigatório'
-      });
-    }
-
-    const order = await Order.findById(req.params.id);
+    // Verificar se o pedido existe
+    const order = db.prepare('SELECT id, status FROM orders WHERE id = ?').get(orderId);
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -239,18 +274,22 @@ router.put('/:id/status', authenticateToken, requireStaff, validateMongoId, asyn
     }
 
     // Atualizar status
-    await order.updateStatus(status, note, req.user._id);
+    db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, orderId);
 
-    // Buscar pedido atualizado
-    const updatedOrder = await Order.findById(order._id)
-      .populate('user', 'name email phone')
-      .populate('items.product', 'name images price');
+    // Registrar no histórico
+    const historyStmt = db.prepare(`
+      INSERT INTO order_status_history (order_id, status, note, updated_by)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    historyStmt.run(orderId, status, note || null, req.user.id);
 
     res.json({
       success: true,
-      message: 'Status do pedido atualizado com sucesso',
+      message: 'Status atualizado com sucesso',
       data: {
-        order: updatedOrder
+        orderId,
+        newStatus: status
       }
     });
   } catch (error) {
@@ -262,96 +301,48 @@ router.put('/:id/status', authenticateToken, requireStaff, validateMongoId, asyn
   }
 });
 
-// @route   DELETE /api/orders/:id
-// @desc    Cancelar pedido
-// @access  Private
-router.delete('/:id', authenticateToken, requireOrderOwnershipOrStaff, validateMongoId, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Pedido não encontrado'
-      });
-    }
-
-    // Verificar se pode ser cancelado
-    const cancelableStatuses = ['pending', 'confirmed'];
-    if (!cancelableStatuses.includes(order.status.current)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Pedido não pode ser cancelado neste estado'
-      });
-    }
-
-    // Cancelar pedido
-    await order.updateStatus('cancelled', 'Cancelado pelo cliente', req.user._id);
-
-    res.json({
-      success: true,
-      message: 'Pedido cancelado com sucesso'
-    });
-  } catch (error) {
-    console.error('Erro ao cancelar pedido:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
 // @route   GET /api/orders/admin/all
 // @desc    Obter todos os pedidos (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.get('/admin/all', authenticateToken, requireStaff, validateOrderFilters, validatePagination, async (req, res) => {
+router.get('/admin/all', authenticateToken, requireStaff, validatePagination, async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      startDate,
-      endDate,
-      deliveryType,
-      userId
-    } = req.query;
+    const { page = 1, limit = 20, status, deliveryType, paymentStatus } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Construir filtros
-    const filters = {};
+    // Construir query
+    let whereClause = 'WHERE 1=1';
+    const params = [];
 
     if (status) {
-      filters['status.current'] = status;
-    }
-
-    if (startDate || endDate) {
-      filters['timing.orderPlaced'] = {};
-      if (startDate) filters['timing.orderPlaced'].$gte = new Date(startDate);
-      if (endDate) filters['timing.orderPlaced'].$lte = new Date(endDate);
+      whereClause += ' AND o.status = ?';
+      params.push(status);
     }
 
     if (deliveryType) {
-      filters['delivery.type'] = deliveryType;
+      whereClause += ' AND o.delivery_type = ?';
+      params.push(deliveryType);
     }
 
-    if (userId) {
-      filters.user = userId;
+    if (paymentStatus) {
+      whereClause += ' AND o.payment_status = ?';
+      params.push(paymentStatus);
     }
 
-    // Calcular skip para paginação
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const ordersQuery = `
+      SELECT o.*, u.name as customer_name, u.phone as customer_phone
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      ${whereClause}
+      ORDER BY o.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
 
-    // Executar query
-    const orders = await Order.find(filters)
-      .sort({ 'timing.orderPlaced': -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('user', 'name email phone')
-      .populate('items.product', 'name images price');
+    const orders = db.prepare(ordersQuery).all(...params, parseInt(limit), offset);
 
     // Contar total de pedidos
-    const total = await Order.countDocuments(filters);
-
-    // Calcular total de páginas
+    const countQuery = `SELECT COUNT(*) as total FROM orders o ${whereClause}`;
+    const totalResult = db.prepare(countQuery).get(...params);
+    const total = totalResult.total;
     const totalPages = Math.ceil(total / parseInt(limit));
 
     res.json({
@@ -376,182 +367,50 @@ router.get('/admin/all', authenticateToken, requireStaff, validateOrderFilters, 
   }
 });
 
-// @route   GET /api/orders/stats/summary
-// @desc    Obter estatísticas dos pedidos
+// @route   GET /api/orders/admin/stats/summary
+// @desc    Obter estatísticas de pedidos (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.get('/stats/summary', authenticateToken, requireStaff, async (req, res) => {
+router.get('/admin/stats/summary', authenticateToken, requireStaff, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const thisMonth = new Date();
-    thisMonth.setDate(1);
-    thisMonth.setHours(0, 0, 0, 0);
-
-    // Estatísticas do dia
-    const todayStats = await Order.aggregate([
-      {
-        $match: {
-          'timing.orderPlaced': { $gte: today }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          count: { $sum: 1 },
-          totalRevenue: { $sum: '$payment.finalAmount' },
-          averageOrderValue: { $avg: '$payment.finalAmount' }
-        }
-      }
-    ]);
-
-    // Estatísticas do mês
-    const monthStats = await Order.aggregate([
-      {
-        $match: {
-          'timing.orderPlaced': { $gte: thisMonth }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          count: { $sum: 1 },
-          totalRevenue: { $sum: '$payment.finalAmount' },
-          averageOrderValue: { $avg: '$payment.finalAmount' }
-        }
-      }
-    ]);
+    // Total de pedidos
+    const totalOrders = db.prepare('SELECT COUNT(*) as total FROM orders').get().total;
+    const pendingOrders = db.prepare('SELECT COUNT(*) as total FROM orders WHERE status = "pending"').get().total;
+    const completedOrders = db.prepare('SELECT COUNT(*) as total FROM orders WHERE status = "delivered"').get().total;
 
     // Pedidos por status
-    const statusStats = await Order.aggregate([
-      {
-        $group: {
-          _id: '$status.current',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    const statusStats = db.prepare(`
+      SELECT status, COUNT(*) as count 
+      FROM orders 
+      GROUP BY status
+    `).all();
 
-    // Pedidos por tipo de entrega
-    const deliveryStats = await Order.aggregate([
-      {
-        $group: {
-          _id: '$delivery.type',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    // Pedidos por mês (últimos 12 meses)
+    const monthlyOrders = db.prepare(`
+      SELECT strftime('%m', created_at) as month, COUNT(*) as count 
+      FROM orders 
+      WHERE created_at >= date('now', 'start of year')
+      GROUP BY strftime('%m', created_at)
+      ORDER BY month
+    `).all();
+
+    // Receita total
+    const totalRevenue = db.prepare('SELECT SUM(final_amount) as total FROM orders WHERE status = "delivered"').get().total || 0;
 
     res.json({
       success: true,
       data: {
-        today: todayStats[0] || { count: 0, totalRevenue: 0, averageOrderValue: 0 },
-        month: monthStats[0] || { count: 0, totalRevenue: 0, averageOrderValue: 0 },
-        byStatus: statusStats,
-        byDeliveryType: deliveryStats
+        summary: {
+          totalOrders,
+          pendingOrders,
+          completedOrders,
+          totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+          statusDistribution: statusStats,
+          monthlyOrders
+        }
       }
     });
   } catch (error) {
     console.error('Erro ao obter estatísticas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   POST /api/orders/:id/refund
-// @desc    Processar reembolso
-// @access  Private (Admin)
-router.post('/:id/refund', authenticateToken, requireAdmin, validateMongoId, async (req, res) => {
-  try {
-    const { reason, amount } = req.body;
-
-    if (!reason || !amount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Motivo e valor são obrigatórios'
-      });
-    }
-
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Pedido não encontrado'
-      });
-    }
-
-    if (order.payment.status !== 'paid') {
-      return res.status(400).json({
-        success: false,
-        message: 'Pedido não foi pago'
-      });
-    }
-
-    // Atualizar status para reembolsado
-    await order.updateStatus('refunded', `Reembolso: ${reason}`, req.user._id);
-
-    // TODO: Processar reembolso com gateway de pagamento
-
-    res.json({
-      success: true,
-      message: 'Reembolso processado com sucesso',
-      data: {
-        order: {
-          _id: order._id,
-          status: order.status.current,
-          refundAmount: amount
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao processar reembolso:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
-
-// @route   GET /api/orders/tracking/:orderNumber
-// @desc    Rastrear pedido por número
-// @access  Public
-router.get('/tracking/:orderNumber', async (req, res) => {
-  try {
-    const { orderNumber } = req.params;
-
-    const order = await Order.findOne({ orderNumber })
-      .select('orderNumber status timing delivery user')
-      .populate('user', 'name');
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Pedido não encontrado'
-      });
-    }
-
-    const trackingInfo = {
-      orderNumber: order.orderNumber,
-      status: order.status.current,
-      statusHistory: order.status.history,
-      timing: order.timing,
-      delivery: {
-        type: order.delivery.type,
-        address: order.delivery.address
-      },
-      customerName: order.user.name
-    };
-
-    res.json({
-      success: true,
-      data: {
-        tracking: trackingInfo
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao rastrear pedido:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'

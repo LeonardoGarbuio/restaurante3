@@ -1,7 +1,7 @@
 const express = require('express');
-const User = require('../models/User');
+const db = require('../config/database');
 const { authenticateToken, requireOwnershipOrAdmin, requireAdmin, requireStaff } = require('../middleware/auth');
-const { validateProfileUpdate, validatePasswordChange, validateMongoId, validatePagination } = require('../middleware/validation');
+const { validateProfileUpdate, validatePasswordChange, validatePagination } = require('../middleware/validation');
 const bcrypt = require('bcryptjs');
 
 const router = express.Router();
@@ -11,7 +11,7 @@ const router = express.Router();
 // @access  Private
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-hashedPassword');
+    const user = db.prepare('SELECT id, name, email, phone, street, city, postal_code, lat, lng, role, loyalty_points, loyalty_tier, is_active, email_verified, phone_verified, dietary_restrictions, delivery_instructions, marketing_emails, sms_notifications, last_login, created_at, updated_at FROM users WHERE id = ?').get(req.user.id);
     
     if (!user) {
       return res.status(404).json({
@@ -42,7 +42,7 @@ router.put('/profile', authenticateToken, validateProfileUpdate, async (req, res
   try {
     const { name, email, phone, address, preferences } = req.body;
 
-    const user = await User.findById(req.user._id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -52,7 +52,7 @@ router.put('/profile', authenticateToken, validateProfileUpdate, async (req, res
 
     // Verificar se o email já está em uso por outro usuário
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
+      const existingUser = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.user.id);
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -61,24 +61,81 @@ router.put('/profile', authenticateToken, validateProfileUpdate, async (req, res
       }
     }
 
-    // Atualizar campos
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (phone) user.phone = phone;
-    if (address) user.address = address;
-    if (preferences) user.preferences = { ...user.preferences, ...preferences };
+    // Construir query de atualização
+    const updateFields = [];
+    const params = [];
+    
+    if (name) {
+      updateFields.push('name = ?');
+      params.push(name);
+    }
+    if (email) {
+      updateFields.push('email = ?');
+      params.push(email);
+    }
+    if (phone) {
+      updateFields.push('phone = ?');
+      params.push(phone);
+    }
+    if (address) {
+      if (address.street) {
+        updateFields.push('street = ?');
+        params.push(address.street);
+      }
+      if (address.city) {
+        updateFields.push('city = ?');
+        params.push(address.city);
+      }
+      if (address.postalCode) {
+        updateFields.push('postal_code = ?');
+        params.push(address.postalCode);
+      }
+      if (address.coordinates) {
+        if (address.coordinates.lat) {
+          updateFields.push('lat = ?');
+          params.push(address.coordinates.lat);
+        }
+        if (address.coordinates.lng) {
+          updateFields.push('lng = ?');
+          params.push(address.coordinates.lng);
+        }
+      }
+    }
+    if (preferences) {
+      if (preferences.dietaryRestrictions) {
+        updateFields.push('dietary_restrictions = ?');
+        params.push(JSON.stringify(preferences.dietaryRestrictions));
+      }
+      if (preferences.deliveryInstructions) {
+        updateFields.push('delivery_instructions = ?');
+        params.push(preferences.deliveryInstructions);
+      }
+      if (preferences.marketingEmails !== undefined) {
+        updateFields.push('marketing_emails = ?');
+        params.push(preferences.marketingEmails ? 1 : 0);
+      }
+      if (preferences.smsNotifications !== undefined) {
+        updateFields.push('sms_notifications = ?');
+        params.push(preferences.smsNotifications ? 1 : 0);
+      }
+    }
 
-    await user.save();
+    if (updateFields.length > 0) {
+      updateFields.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(req.user.id);
 
-    // Retornar usuário sem senha
-    const userResponse = user.toObject();
-    delete userResponse.hashedPassword;
+      const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+      db.prepare(updateQuery).run(...params);
+    }
+
+    // Buscar usuário atualizado
+    const updatedUser = db.prepare('SELECT id, name, email, phone, street, city, postal_code, lat, lng, role, loyalty_points, loyalty_tier, is_active, email_verified, phone_verified, dietary_restrictions, delivery_instructions, marketing_emails, sms_notifications, last_login, created_at, updated_at FROM users WHERE id = ?').get(req.user.id);
 
     res.json({
       success: true,
       message: 'Perfil atualizado com sucesso',
       data: {
-        user: userResponse
+        user: updatedUser
       }
     });
   } catch (error) {
@@ -97,7 +154,7 @@ router.put('/change-password', authenticateToken, validatePasswordChange, async 
   try {
     const { currentPassword, newPassword } = req.body;
 
-    const user = await User.findById(req.user._id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -106,7 +163,7 @@ router.put('/change-password', authenticateToken, validatePasswordChange, async 
     }
 
     // Verificar senha atual
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
@@ -115,11 +172,11 @@ router.put('/change-password', authenticateToken, validatePasswordChange, async 
     }
 
     // Hash da nova senha
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-    
-    user.hashedPassword = hashedPassword;
-    await user.save();
+    const salt = await bcrypt.genSalt(12);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    // Atualizar senha
+    db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hashedNewPassword, req.user.id);
 
     res.json({
       success: true,
@@ -139,7 +196,7 @@ router.put('/change-password', authenticateToken, validatePasswordChange, async 
 // @access  Private
 router.delete('/account', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -148,9 +205,7 @@ router.delete('/account', authenticateToken, async (req, res) => {
     }
 
     // Desativar conta (soft delete)
-    user.isActive = false;
-    user.deactivatedAt = new Date();
-    await user.save();
+    db.prepare('UPDATE users SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.user.id);
 
     res.json({
       success: true,
@@ -171,27 +226,40 @@ router.delete('/account', authenticateToken, async (req, res) => {
 router.get('/admin/all', authenticateToken, requireStaff, validatePagination, async (req, res) => {
   try {
     const { page = 1, limit = 20, role, isActive, search } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Construir filtros
-    const filters = {};
-    if (role) filters.role = role;
-    if (isActive !== undefined) filters.isActive = isActive === 'true';
+    // Construir query SQL
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+
+    if (role) {
+      whereClause += ' AND role = ?';
+      params.push(role);
+    }
+    if (isActive !== undefined) {
+      whereClause += ' AND is_active = ?';
+      params.push(isActive === 'true' ? 1 : 0);
+    }
     if (search) {
-      filters.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
-      ];
+      whereClause += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)';
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
     }
 
-    const users = await User.find(filters)
-      .select('-hashedPassword')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const usersQuery = `
+      SELECT id, name, email, phone, street, city, postal_code, role, loyalty_points, loyalty_tier, is_active, created_at, updated_at 
+      FROM users 
+      ${whereClause} 
+      ORDER BY created_at DESC 
+      LIMIT ? OFFSET ?
+    `;
+    
+    const users = db.prepare(usersQuery).all(...params, parseInt(limit), offset);
 
-    const total = await User.countDocuments(filters);
+    // Contar total de usuários
+    const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+    const totalResult = db.prepare(countQuery).get(...params);
+    const total = totalResult.total;
     const totalPages = Math.ceil(total / parseInt(limit));
 
     res.json({
@@ -219,11 +287,11 @@ router.get('/admin/all', authenticateToken, requireStaff, validatePagination, as
 // @route   GET /api/users/admin/:userId
 // @desc    Obter usuário específico (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.get('/admin/:userId', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
+router.get('/admin/:userId', authenticateToken, requireStaff, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId).select('-hashedPassword');
+    const user = db.prepare('SELECT id, name, email, phone, street, city, postal_code, role, loyalty_points, loyalty_tier, is_active, created_at, updated_at FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -249,12 +317,12 @@ router.get('/admin/:userId', authenticateToken, requireStaff, validateMongoId, a
 // @route   PUT /api/users/admin/:userId/update
 // @desc    Atualizar usuário (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.put('/admin/:userId/update', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
+router.put('/admin/:userId/update', authenticateToken, requireStaff, async (req, res) => {
   try {
     const { userId } = req.params;
     const { name, email, phone, role, isActive, address, preferences } = req.body;
 
-    const user = await User.findById(userId);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -264,7 +332,7 @@ router.put('/admin/:userId/update', authenticateToken, requireStaff, validateMon
 
     // Verificar se o email já está em uso por outro usuário
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
+      const existingUser = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, userId);
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -273,26 +341,89 @@ router.put('/admin/:userId/update', authenticateToken, requireStaff, validateMon
       }
     }
 
-    // Atualizar campos
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (phone) user.phone = phone;
-    if (role) user.role = role;
-    if (isActive !== undefined) user.isActive = isActive;
-    if (address) user.address = address;
-    if (preferences) user.preferences = { ...user.preferences, ...preferences };
+    // Construir query de atualização
+    const updateFields = [];
+    const params = [];
+    
+    if (name) {
+      updateFields.push('name = ?');
+      params.push(name);
+    }
+    if (email) {
+      updateFields.push('email = ?');
+      params.push(email);
+    }
+    if (phone) {
+      updateFields.push('phone = ?');
+      params.push(phone);
+    }
+    if (role) {
+      updateFields.push('role = ?');
+      params.push(role);
+    }
+    if (isActive !== undefined) {
+      updateFields.push('is_active = ?');
+      params.push(isActive ? 1 : 0);
+    }
+    if (address) {
+      if (address.street) {
+        updateFields.push('street = ?');
+        params.push(address.street);
+      }
+      if (address.city) {
+        updateFields.push('city = ?');
+        params.push(address.city);
+      }
+      if (address.postalCode) {
+        updateFields.push('postal_code = ?');
+        params.push(address.postalCode);
+      }
+      if (address.coordinates) {
+        if (address.coordinates.lat) {
+          updateFields.push('lat = ?');
+          params.push(address.coordinates.lat);
+        }
+        if (address.coordinates.lng) {
+          updateFields.push('lng = ?');
+          params.push(address.coordinates.lng);
+        }
+      }
+    }
+    if (preferences) {
+      if (preferences.dietaryRestrictions) {
+        updateFields.push('dietary_restrictions = ?');
+        params.push(JSON.stringify(preferences.dietaryRestrictions));
+      }
+      if (preferences.deliveryInstructions) {
+        updateFields.push('delivery_instructions = ?');
+        params.push(preferences.deliveryInstructions);
+      }
+      if (preferences.marketingEmails !== undefined) {
+        updateFields.push('marketing_emails = ?');
+        params.push(preferences.marketingEmails ? 1 : 0);
+      }
+      if (preferences.smsNotifications !== undefined) {
+        updateFields.push('sms_notifications = ?');
+        params.push(preferences.smsNotifications ? 1 : 0);
+      }
+    }
 
-    await user.save();
+    if (updateFields.length > 0) {
+      updateFields.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(userId);
 
-    // Retornar usuário sem senha
-    const userResponse = user.toObject();
-    delete userResponse.hashedPassword;
+      const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+      db.prepare(updateQuery).run(...params);
+    }
+
+    // Buscar usuário atualizado
+    const updatedUser = db.prepare('SELECT id, name, email, phone, street, city, postal_code, role, loyalty_points, loyalty_tier, is_active, created_at, updated_at FROM users WHERE id = ?').get(userId);
 
     res.json({
       success: true,
       message: 'Usuário atualizado com sucesso',
       data: {
-        user: userResponse
+        user: updatedUser
       }
     });
   } catch (error) {
@@ -307,7 +438,7 @@ router.put('/admin/:userId/update', authenticateToken, requireStaff, validateMon
 // @route   PUT /api/users/admin/:userId/reset-password
 // @desc    Redefinir senha do usuário (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.put('/admin/:userId/reset-password', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
+router.put('/admin/:userId/reset-password', authenticateToken, requireStaff, async (req, res) => {
   try {
     const { userId } = req.params;
     const { newPassword } = req.body;
@@ -319,7 +450,7 @@ router.put('/admin/:userId/reset-password', authenticateToken, requireStaff, val
       });
     }
 
-    const user = await User.findById(userId);
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -328,11 +459,11 @@ router.put('/admin/:userId/reset-password', authenticateToken, requireStaff, val
     }
 
     // Hash da nova senha
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-    
-    user.hashedPassword = hashedPassword;
-    await user.save();
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Atualizar senha
+    db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hashedPassword, userId);
 
     res.json({
       success: true,
@@ -350,11 +481,11 @@ router.put('/admin/:userId/reset-password', authenticateToken, requireStaff, val
 // @route   PUT /api/users/admin/:userId/toggle-status
 // @desc    Ativar/Desativar usuário (Admin/Staff)
 // @access  Private (Staff/Admin)
-router.put('/admin/:userId/toggle-status', authenticateToken, requireStaff, validateMongoId, async (req, res) => {
+router.put('/admin/:userId/toggle-status', authenticateToken, requireStaff, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId);
+    const user = db.prepare('SELECT id, name, email, is_active FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -363,24 +494,19 @@ router.put('/admin/:userId/toggle-status', authenticateToken, requireStaff, vali
     }
 
     // Alternar status
-    user.isActive = !user.isActive;
-    if (!user.isActive) {
-      user.deactivatedAt = new Date();
-    } else {
-      user.deactivatedAt = undefined;
-    }
-
-    await user.save();
+    const newStatus = user.is_active ? 0 : 1;
+    
+    db.prepare('UPDATE users SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, userId);
 
     res.json({
       success: true,
-      message: `Usuário ${user.isActive ? 'ativado' : 'desativado'} com sucesso`,
+      message: `Usuário ${newStatus ? 'ativado' : 'desativado'} com sucesso`,
       data: {
         user: {
-          _id: user._id,
+          id: user.id,
           name: user.name,
           email: user.email,
-          isActive: user.isActive
+          isActive: newStatus === 1
         }
       }
     });
@@ -399,45 +525,24 @@ router.put('/admin/:userId/toggle-status', authenticateToken, requireStaff, vali
 router.get('/admin/stats/summary', authenticateToken, requireStaff, async (req, res) => {
   try {
     // Total de usuários
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
-    const inactiveUsers = await User.countDocuments({ isActive: false });
+    const totalUsers = db.prepare('SELECT COUNT(*) as total FROM users').get().total;
+    const activeUsers = db.prepare('SELECT COUNT(*) as total FROM users WHERE is_active = 1').get().total;
+    const inactiveUsers = db.prepare('SELECT COUNT(*) as total FROM users WHERE is_active = 0').get().total;
 
     // Distribuição por role
-    const roleDistribution = await User.aggregate([
-      {
-        $group: {
-          _id: '$role',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    const roleDistribution = db.prepare('SELECT role, COUNT(*) as count FROM users GROUP BY role').all();
 
     // Usuários por mês (últimos 12 meses)
-    const monthlyUsers = await User.aggregate([
-      {
-        $match: {
-          createdAt: {
-            $gte: new Date(new Date().getFullYear(), 0, 1)
-          }
-        }
-      },
-      {
-        $group: {
-          _id: { $month: '$createdAt' },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { '_id': 1 }
-      }
-    ]);
+    const monthlyUsers = db.prepare(`
+      SELECT strftime('%m', created_at) as month, COUNT(*) as count 
+      FROM users 
+      WHERE created_at >= date('now', 'start of year')
+      GROUP BY strftime('%m', created_at)
+      ORDER BY month
+    `).all();
 
     // Usuários verificados
-    const verifiedUsers = await User.countDocuments({
-      'verification.emailVerified': true,
-      'verification.phoneVerified': true
-    });
+    const verifiedUsers = db.prepare('SELECT COUNT(*) as total FROM users WHERE email_verified = 1 AND phone_verified = 1').get().total;
 
     res.json({
       success: true,
@@ -476,7 +581,7 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req, res) =
     }
 
     // Verificar se o email já está em uso
-    const existingUser = await User.findOne({ email });
+    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -485,25 +590,30 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req, res) =
     }
 
     // Hash da senha
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     // Criar usuário
-    const user = new User({
+    const stmt = db.prepare(`
+      INSERT INTO users (name, email, phone, password, street, city, postal_code, role, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `);
+
+    const result = stmt.run(
       name,
       email,
       phone,
       hashedPassword,
-      role,
-      address,
-      isActive: true
-    });
+      address?.street || '',
+      address?.city || '',
+      address?.postalCode || '',
+      role || 'customer'
+    );
 
-    await user.save();
+    const userId = result.lastInsertRowid;
 
-    // Retornar usuário sem senha
-    const userResponse = user.toObject();
-    delete userResponse.hashedPassword;
+    // Buscar usuário criado
+    const userResponse = db.prepare('SELECT id, name, email, phone, street, city, postal_code, role, is_active, created_at FROM users WHERE id = ?').get(userId);
 
     res.status(201).json({
       success: true,
@@ -524,19 +634,19 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req, res) =
 // @route   DELETE /api/users/admin/:userId
 // @desc    Excluir usuário permanentemente (Admin)
 // @access  Private (Admin)
-router.delete('/admin/:userId', authenticateToken, requireAdmin, validateMongoId, async (req, res) => {
+router.delete('/admin/:userId', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
 
     // Verificar se não está tentando excluir a si mesmo
-    if (userId === req.user._id.toString()) {
+    if (userId === req.user.id.toString()) {
       return res.status(400).json({
         success: false,
         message: 'Não é possível excluir sua própria conta'
       });
     }
 
-    const user = await User.findById(userId);
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -545,7 +655,7 @@ router.delete('/admin/:userId', authenticateToken, requireAdmin, validateMongoId
     }
 
     // Exclusão permanente
-    await User.findByIdAndDelete(userId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
 
     res.json({
       success: true,
@@ -574,22 +684,28 @@ router.get('/admin/search', authenticateToken, requireStaff, async (req, res) =>
       });
     }
 
-    // Construir filtros
-    const filters = {
-      $or: [
-        { name: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } },
-        { phone: { $regex: query, $options: 'i' } }
-      ]
-    };
+    // Construir query SQL
+    let whereClause = 'WHERE (name LIKE ? OR email LIKE ? OR phone LIKE ?)';
+    const params = [`%${query}%`, `%${query}%`, `%${query}%`];
 
-    if (role) filters.role = role;
-    if (isActive !== undefined) filters.isActive = isActive === 'true';
+    if (role) {
+      whereClause += ' AND role = ?';
+      params.push(role);
+    }
+    if (isActive !== undefined) {
+      whereClause += ' AND is_active = ?';
+      params.push(isActive === 'true' ? 1 : 0);
+    }
 
-    const users = await User.find(filters)
-      .select('-hashedPassword')
-      .limit(20)
-      .sort({ name: 1 });
+    const usersQuery = `
+      SELECT id, name, email, phone, street, city, postal_code, role, loyalty_points, loyalty_tier, is_active, created_at, updated_at 
+      FROM users 
+      ${whereClause} 
+      ORDER BY name ASC 
+      LIMIT 20
+    `;
+    
+    const users = db.prepare(usersQuery).all(...params);
 
     res.json({
       success: true,
