@@ -1396,7 +1396,22 @@
                     const productPrice = this.getAttribute('data-price');
                     
                     if (productName && productPrice) {
-                        addToCart(productName, productPrice);
+                        // Feedback visual
+                        const originalText = this.textContent;
+                        this.textContent = 'Adicionando...';
+                        this.disabled = true;
+                        
+                        setTimeout(() => {
+                            addToCart(productName, productPrice);
+                            this.textContent = 'Adicionado!';
+                            this.classList.add('bg-green-500');
+                            
+                            setTimeout(() => {
+                                this.textContent = originalText;
+                                this.classList.remove('bg-green-500');
+                                this.disabled = false;
+                            }, 1000);
+                        }, 300);
                     } else {
                         console.error('❌ Produto sem nome ou preço definido');
                     }
@@ -1487,43 +1502,8 @@
                 console.log('✅ Botão de finalizar compra configurado!');
             }
             
-            // Configurar botões de adicionar ao carrinho
-            const addButtons = document.querySelectorAll('.add-to-cart-btn');
-            console.log(`🛒 Encontrados ${addButtons.length} botões de adicionar ao carrinho`);
-            
-            addButtons.forEach((button, index) => {
-                const product = button.getAttribute('data-product');
-                const price = button.getAttribute('data-price');
-                
-                button.onclick = () => {
-                    button.textContent = 'Adicionando...';
-                    button.disabled = true;
-                    
-                    setTimeout(() => {
-                        if (addToCart(product, price)) {
-                            button.textContent = 'Adicionado!';
-                            button.classList.add('bg-success', 'hover:bg-success-600');
-                            
-                            setTimeout(() => {
-                                button.textContent = 'Adicionar';
-                                button.classList.remove('bg-success', 'hover:bg-success-600');
-                                button.disabled = false;
-                            }, 1000);
-                        } else {
-                            button.textContent = 'Erro!';
-                            button.classList.add('bg-red-500', 'hover:bg-red-600');
-                            
-                            setTimeout(() => {
-                                button.textContent = 'Adicionar';
-                                button.classList.remove('bg-red-500', 'hover:bg-red-600');
-                                button.disabled = false;
-                            }, 1000);
-                        }
-                    }, 500);
-                };
-                
-                console.log(`✅ Botão ${index + 1} configurado: ${product}`);
-            });
+            // Botões de adicionar ao carrinho já configurados acima
+            console.log('✅ Botões de adicionar ao carrinho já configurados!');
             
             // Configurar menu mobile
             const mobileBtn = document.getElementById('mobile-menu-btn');
@@ -1796,34 +1776,8 @@
                 console.log('✅ Botão de finalizar compra configurado!');
             }
             
-            // Configurar botões de adicionar ao carrinho
-            const addButtons = document.querySelectorAll('.add-to-cart-btn');
-            console.log(`🛒 Encontrados ${addButtons.length} botões de adicionar ao carrinho`);
-            
-            addButtons.forEach((button, index) => {
-                const product = button.getAttribute('data-product');
-                const price = button.getAttribute('data-price');
-                
-                button.onclick = () => {
-                    // Feedback visual
-                    button.textContent = 'Adicionando...';
-                    button.disabled = true;
-                    
-                    setTimeout(() => {
-                        addToCart(product, price);
-                        button.textContent = 'Adicionado!';
-                        button.classList.add('bg-success', 'hover:bg-success-600');
-                        
-                        setTimeout(() => {
-                            button.textContent = 'Adicionar';
-                            button.classList.remove('bg-success', 'hover:bg-success-600');
-                            button.disabled = false;
-                        }, 1000);
-                    }, 500);
-                };
-                
-                console.log(`✅ Botão ${index + 1} configurado: ${product}`);
-            });
+            // Botões de adicionar ao carrinho já configurados acima
+            console.log('✅ Botões de adicionar ao carrinho já configurados!');
             
             // Configurar menu mobile
             const mobileBtn = document.getElementById('mobile-menu-btn');
