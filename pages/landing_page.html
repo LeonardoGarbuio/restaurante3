@@ -1470,58 +1470,7 @@
             }
         }
         
-        // ===== INICIALIZAÇÃO QUANDO A PÁGINA CARREGAR =====
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DOM carregado! Inicializando sistema de carrinho...');
-            
-            // Inicializar sistema de carrinho simples
-            loadCart();
-            
-            // Configurar botões
-            const closeCartBtn = document.getElementById('close-cart-modal');
-            if (closeCartBtn) {
-                closeCartBtn.onclick = closeCartModal;
-                console.log('✅ Botão de fechar carrinho configurado!');
-            }
-            
-            const cartBtn = document.getElementById('cart-btn');
-            if (cartBtn) {
-                cartBtn.onclick = showCartModal;
-                console.log('✅ Botão do carrinho configurado!');
-            }
-            
-            const clearCartBtn = document.getElementById('clear-cart');
-            if (clearCartBtn) {
-                clearCartBtn.onclick = clearCart;
-                console.log('✅ Botão de limpar carrinho configurado!');
-            }
-            
-            const checkoutBtn = document.getElementById('checkout-btn');
-            if (checkoutBtn) {
-                checkoutBtn.onclick = () => checkout();
-                console.log('✅ Botão de finalizar compra configurado!');
-            }
-            
-            // Botões de adicionar ao carrinho já configurados acima
-            console.log('✅ Botões de adicionar ao carrinho já configurados!');
-            
-            // Configurar menu mobile
-            const mobileBtn = document.getElementById('mobile-menu-btn');
-            if (mobileBtn) {
-                mobileBtn.onclick = function() {
-            const mobileMenu = document.getElementById('mobile-menu');
-                    if (mobileMenu) {
-            mobileMenu.classList.toggle('hidden');
-                        console.log('📱 Menu mobile alternado!');
-                    }
-                };
-            }
-            
-            // Inicializar UI
-            initializeUI();
-            
-            console.log('🎉 SISTEMA ENTERPRISE TOTALMENTE CONFIGURADO!');
-        });
+        // ===== INICIALIZAÇÃO REMOVIDA - JÁ CONFIGURADA ACIMA =====
         
         // ===== FUNÇÕES UTILITÁRIAS =====
         function scrollToSection(sectionId) {
@@ -1548,27 +1497,7 @@
             }
         });
 
-        // Função para mostrar modal do carrinho
-        function showCartModal() {
-            const modal = document.getElementById('cart-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                renderCartItems();
-                console.log('🛒 Modal do carrinho aberto!');
-            }
-        }
-        
-        // Função para fechar modal do carrinho
-        function closeCartModal() {
-            const modal = document.getElementById('cart-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                console.log('❌ Modal do carrinho fechado!');
-            }
-        }
-        
-        // Função para renderizar itens do carrinho
-        function renderCartItems() {
+        // Funções já definidas acima
             const cartItemsContainer = document.getElementById('cart-items');
             const emptyMessage = document.getElementById('empty-cart-message');
             const cartActions = document.getElementById('cart-actions');
