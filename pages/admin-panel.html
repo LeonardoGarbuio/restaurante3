@@ -400,6 +400,29 @@
             }
         }
 
+        // Função para obter headers de autenticação
+        function getAuthHeaders() {
+            const token = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
+            if (token) {
+                return {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+            }
+            return {};
+        }
+
+        // Função para obter headers de autenticação para FormData
+        function getAuthHeadersFormData() {
+            const token = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
+            if (token) {
+                return {
+                    'Authorization': `Bearer ${token}`
+                };
+            }
+            return {};
+        }
+
         function setupEventListeners() {
             // Logout
             document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -617,7 +640,9 @@
         async function loadProducts() {
             try {
                 console.log('🔄 Carregando produtos...');
-                const response = await fetch('/api/admin/products');
+                const response = await fetch('/api/admin/products', {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
                 
                 console.log('📦 Dados recebidos:', data);
@@ -764,7 +789,9 @@
         async function loadCategories() {
             try {
                 console.log('🔄 Carregando categorias...');
-                const response = await fetch('/api/admin/categories');
+                const response = await fetch('/api/admin/categories', {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
                 
                 console.log('📂 Categorias recebidas:', data);
@@ -792,6 +819,8 @@
         }
 
         async function saveProduct() {
+            console.log('🚀 Iniciando salvamento do produto...');
+            
             const name = document.getElementById('productName').value;
             const price = document.getElementById('productPrice').value;
             const category = document.getElementById('productCategory').value;
@@ -800,6 +829,9 @@
             const is_available = document.getElementById('productAvailable').checked ? 1 : 0;
             const is_featured = document.getElementById('productFeatured').checked ? 1 : 0;
             const sort_order = document.getElementById('productSortOrder').value || null;
+            
+            console.log('📝 Dados do produto:', { name, price, category, description, is_available, is_featured, sort_order });
+            console.log('📁 Arquivo de imagem:', imageFile);
             
             if (!name || !price || !category) {
                 alert('Preencha os campos obrigatórios');
@@ -832,12 +864,20 @@
                     formData.append('image', imageFile);
                 }
                 
+                console.log('📤 Enviando requisição para /api/admin/products...');
+                console.log('📋 FormData:', formData);
+                
                 const response = await fetch('/api/admin/products', {
                     method: 'POST',
+                    headers: getAuthHeadersFormData(),
                     body: formData
                 });
                 
+                console.log('📥 Resposta recebida:', response);
+                console.log('📊 Status:', response.status);
+                
                 const data = await response.json();
+                console.log('📄 Dados da resposta:', data);
                 
                 if (data.success) {
                     alert('Produto salvo com sucesso!');
@@ -848,7 +888,7 @@
                 }
             } catch (error) {
                 console.error('❌ Erro ao salvar produto:', error);
-                alert('Erro ao salvar produto');
+                alert('Erro ao salvar produto: ' + error.message);
             }
         }
 
@@ -863,7 +903,8 @@
 
             try {
                 const response = await fetch(`/api/admin/products/${id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
                 });
 
                 const data = await response.json();
@@ -885,7 +926,9 @@
                 console.log('🔄 Editando produto ID:', id);
                 
                 // Buscar dados do produto
-                const response = await fetch(`/api/admin/products/${id}`);
+                const response = await fetch(`/api/admin/products/${id}`, {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1068,7 +1111,9 @@
         
         async function getFeaturedProductsCount() {
             try {
-                const response = await fetch('/api/admin/products');
+                const response = await fetch('/api/admin/products', {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
                 if (data.success) {
                     return data.data.filter(product => product.is_featured).length;
@@ -1082,7 +1127,9 @@
 
         async function getProductById(id) {
             try {
-                const response = await fetch(`/api/admin/products/${id}`);
+                const response = await fetch(`/api/admin/products/${id}`, {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
                 if (data.success) {
                     return data.data;
@@ -1109,7 +1156,7 @@
                 
                 const response = await fetch(`/api/admin/products/${productId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         is_featured: newStatus ? 1 : 0,
                         sort_order: newStatus ? (await getFeaturedProductsCount()) + 1 : null
@@ -1133,7 +1180,7 @@
             try {
                 const response = await fetch(`/api/admin/products/${productId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         is_featured: 0,
                         sort_order: null
@@ -1163,7 +1210,9 @@
 
         async function moveProductPosition(productId, direction) {
             try {
-                const response = await fetch('/api/admin/products');
+                const response = await fetch('/api/admin/products', {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
                 
                 if (!data.success) return;
@@ -1190,13 +1239,13 @@
                 
                 await fetch(`/api/admin/products/${currentProduct.id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sort_order: targetProduct.sort_order || newIndex + 1 })
                 });
                 
                 await fetch(`/api/admin/products/${targetProduct.id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sort_order: currentProduct.sort_order || newIndex + 1 })
                 });
                 
@@ -1259,6 +1308,7 @@
                 
                 const response = await fetch(`/api/admin/products/${id}`, {
                     method: 'PUT',
+                    headers: getAuthHeadersFormData(),
                     body: formData
                 });
                 

@@ -2,12 +2,21 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { db, getCategories, getProducts } = require('../config/database');
+const { authenticateAdmin, requirePermission } = require('../middleware/admin-auth');
+
+// Criar diretório de uploads se não existir
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Diretório de uploads criado:', uploadsDir);
+}
 
 // Configuração do Multer para upload de arquivos
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'public/uploads/');
+    cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -30,7 +39,7 @@ const upload = multer({
 });
 
 // GET - Listar todos os produtos
-router.get('/products', async (req, res) => {
+router.get('/products', authenticateAdmin, requirePermission('manage_products'), async (req, res) => {
     try {
         const products = await getProducts();
         const categories = await getCategories();
@@ -49,7 +58,7 @@ router.get('/products', async (req, res) => {
 });
 
 // GET - Buscar produto específico
-router.get('/products/:id', async (req, res) => {
+router.get('/products/:id', authenticateAdmin, requirePermission('manage_products'), async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -74,7 +83,7 @@ router.get('/products/:id', async (req, res) => {
 });
 
 // POST - Criar produto
-router.post('/products', upload.single('image'), async (req, res) => {
+router.post('/products', authenticateAdmin, requirePermission('manage_products'), upload.single('image'), async (req, res) => {
     try {
         console.log('📝 Criando produto:', req.body);
         console.log('📁 Arquivo recebido:', req.file);
@@ -111,7 +120,7 @@ router.post('/products', upload.single('image'), async (req, res) => {
 });
 
 // PUT - Atualizar produto
-router.put('/products/:id', upload.single('image'), async (req, res) => {
+router.put('/products/:id', authenticateAdmin, requirePermission('manage_products'), upload.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, price, category_id, is_available, is_featured, sort_order } = req.body;
@@ -182,7 +191,7 @@ router.put('/products/:id', upload.single('image'), async (req, res) => {
 });
 
 // DELETE - Deletar produto
-router.delete('/products/:id', (req, res) => {
+router.delete('/products/:id', authenticateAdmin, requirePermission('manage_products'), (req, res) => {
     const { id } = req.params;
     
     db.run('DELETE FROM products WHERE id = ?', [id], function(err) {
@@ -194,7 +203,7 @@ router.delete('/products/:id', (req, res) => {
 });
 
 // GET - Categorias
-router.get('/categories', async (req, res) => {
+router.get('/categories', authenticateAdmin, requirePermission('manage_products'), async (req, res) => {
     try {
         const categories = await getCategories();
         res.json({ success: true, data: categories });
