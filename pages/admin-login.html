@@ -120,10 +120,21 @@
 
                     if (data.success) {
                         // Login bem-sucedido
+                        console.log('✅ Login bem-sucedido, salvando token...');
+                        
+                        // Salvar token no localStorage
+                        if (data.token) {
+                            localStorage.setItem('admin_token', data.token);
+                            console.log('💾 Token salvo no localStorage');
+                        }
+                        
                         showNotification('✅ Login realizado com sucesso!', 'success');
-                        console.log('✅ Login bem-sucedido, redirecionando...');
-                        // Redirecionar imediatamente
-                        window.location.href = '/pages/admin-panel.html';
+                        console.log('🔄 Redirecionando para o painel...');
+                        
+                        // Aguardar um pouco para garantir que o token foi salvo
+                        setTimeout(() => {
+                            window.location.href = '/pages/admin-panel.html';
+                        }, 500);
                     } else {
                         // Erro no login
                         showNotification(data.message || 'Erro ao fazer login', 'error');

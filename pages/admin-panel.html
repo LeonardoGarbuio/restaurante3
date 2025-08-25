@@ -375,28 +375,43 @@
         async function checkAuth() {
             try {
                 console.log('🔍 Verificando autenticação...');
-                const response = await fetch('/api/admin/verify');
+                
+                // Verificar se há token no localStorage
+                const token = localStorage.getItem('admin_token');
+                if (!token) {
+                    console.log('❌ Nenhum token encontrado, redirecionando para login...');
+                    window.location.href = '/pages/admin-login.html';
+                    return;
+                }
+                
+                console.log('🔑 Token encontrado, verificando...');
+                
+                const response = await fetch('/api/admin/verify', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
                 console.log('📡 Auth response status:', response.status);
                 const data = await response.json();
                 console.log('📡 Auth response data:', data);
                 
                 if (!data.success) {
-                    console.log('❌ Auth falhou, mas continuando para debug...');
-                    // Temporariamente desabilitar redirecionamento
-                    // window.location.href = '/pages/admin-login.html';
-                    // return;
+                    console.log('❌ Token inválido, redirecionando para login...');
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/pages/admin-login.html';
+                    return;
                 }
                 
-                console.log('✅ Auth bem-sucedida ou debug mode');
+                console.log('✅ Autenticação bem-sucedida');
                 currentUser = data.user || { username: 'Admin' };
                 document.getElementById('adminInfo').textContent = `Olá, ${currentUser.username}`;
                 
             } catch (error) {
                 console.error('❌ Erro na verificação de auth:', error);
-                // Temporariamente comentar o redirecionamento para debug
-                // window.location.href = '/pages/admin-login.html';
-                currentUser = { username: 'Admin' };
-                document.getElementById('adminInfo').textContent = 'Olá, Admin';
+                console.log('🔄 Redirecionando para login devido ao erro...');
+                localStorage.removeItem('admin_token');
+                window.location.href = '/pages/admin-login.html';
             }
         }
 
@@ -427,10 +442,22 @@
             // Logout
             document.getElementById('logoutBtn').addEventListener('click', async () => {
                 try {
+                    console.log('🚪 Fazendo logout...');
+                    
+                    // Limpar token do localStorage
+                    localStorage.removeItem('admin_token');
+                    console.log('🗑️ Token removido do localStorage');
+                    
+                    // Chamar API de logout
                     await fetch('/api/admin/logout', { method: 'POST' });
+                    
+                    console.log('🔄 Redirecionando para login...');
                     window.location.href = '/pages/admin-login.html';
                 } catch (error) {
                     console.error('❌ Erro no logout:', error);
+                    // Mesmo com erro, limpar token e redirecionar
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/pages/admin-login.html';
                 }
             });
 
