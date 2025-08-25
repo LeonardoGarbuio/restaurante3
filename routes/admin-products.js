@@ -119,76 +119,103 @@ router.post('/products', authenticateAdmin, requirePermission('manage_products')
     }
 });
 
-// PUT - Atualizar produto
-router.put('/products/:id', authenticateAdmin, requirePermission('manage_products'), upload.single('image'), async (req, res) => {
+// PUT - Atualizar produto (com imagem)
+router.put('/products/:id/image', authenticateAdmin, requirePermission('manage_products'), upload.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, price, category_id, is_available, is_featured, sort_order } = req.body;
         
-        console.log('📝 Atualizando produto ID:', id, req.body);
+        console.log('📝 Atualizando produto com imagem ID:', id, req.body);
         console.log('📁 Arquivo recebido:', req.file);
         
-        // Se é apenas uma atualização de destaque/sort_order, não validar campos obrigatórios
-        const isFeaturedUpdate = req.body.hasOwnProperty('is_featured') && !name && !price && !category_id;
-        
-        if (!isFeaturedUpdate && (!name || !price || !category_id)) {
-            return res.status(400).json({ success: false, message: 'Nome, preço e categoria são obrigatórios' });
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Imagem é obrigatória para esta rota' });
         }
         
-        // Buscar produto atual para manter dados existentes
-        db.get('SELECT * FROM products WHERE id = ?', [id], async (err, currentProduct) => {
-            if (err) {
-                console.error('❌ Erro ao buscar produto atual:', err);
-                return res.status(500).json({ success: false, message: 'Erro interno' });
-            }
-            
-            if (!currentProduct) {
-                return res.status(404).json({ success: false, message: 'Produto não encontrado' });
-            }
-            
-            // Para atualizações de destaque, manter dados existentes
-            const updateName = name || currentProduct.name;
-            const updateDescription = description || currentProduct.description;
-            const updatePrice = price || currentProduct.price;
-            const updateCategoryId = category_id || currentProduct.category_id;
-            const updateIsAvailable = is_available !== undefined ? (is_available ? 1 : 0) : currentProduct.is_available;
-            const updateIsFeatured = is_featured !== undefined ? (is_featured ? 1 : 0) : currentProduct.is_featured;
-            const updateSortOrder = sort_order !== undefined ? sort_order : currentProduct.sort_order;
-            
-            let image_url = currentProduct.image_url || '';
-            
-            // Se foi enviada nova imagem, usar ela
-            if (req.file) {
-                image_url = `/uploads/${req.file.filename}`;
-            }
-            
-            const query = `UPDATE products SET name = ?, description = ?, price = ?, category_id = ?, 
-                           image_url = ?, is_available = ?, is_featured = ?, sort_order = ? WHERE id = ?`;
-            
-            db.run(query, [updateName, updateDescription, updatePrice, updateCategoryId, image_url, updateIsAvailable, updateIsFeatured, updateSortOrder, id], function(err) {
-                if (err) {
-                    console.error('❌ Erro ao atualizar produto:', err);
-                    return res.status(500).json({ success: false, message: 'Erro interno' });
-                }
-                
-                // Buscar produto atualizado
-                db.get('SELECT * FROM products WHERE id = ?', [id], (err, product) => {
-                    if (err) {
-                        console.error('❌ Erro ao buscar produto atualizado:', err);
-                        return res.status(500).json({ success: false, message: 'Erro interno' });
-                    }
-                    
-                    console.log('✅ Produto atualizado com sucesso:', product);
-                    res.json({ success: true, data: product, message: 'Produto atualizado com sucesso' });
-                });
-            });
-        });
+        await updateProductInDatabase(id, req.body, req.file, res);
         
     } catch (error) {
-        console.error('❌ Erro na atualização do produto:', error);
+        console.error('❌ Erro na atualização do produto com imagem:', error);
         res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
 });
+
+// PUT - Atualizar produto (sem imagem)
+router.put('/products/:id', authenticateAdmin, requirePermission('manage_products'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, price, category_id, is_available, is_featured, sort_order } = req.body;
+        
+        console.log('📝 Atualizando produto sem imagem ID:', id, req.body);
+        
+        await updateProductInDatabase(id, req.body, null, res);
+        
+    } catch (error) {
+        console.error('❌ Erro na atualização do produto sem imagem:', error);
+        res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+});
+
+// Função auxiliar para atualizar produto no banco
+async function updateProductInDatabase(id, body, file, res) {
+    const { name, description, price, category_id, is_available, is_featured, sort_order } = body;
+    
+    // Se é apenas uma atualização de destaque/sort_order, não validar campos obrigatórios
+    const isFeaturedUpdate = body.hasOwnProperty('is_featured') && !name && !price && !category_id;
+    
+    if (!isFeaturedUpdate && (!name || !price || !category_id)) {
+        return res.status(400).json({ success: false, message: 'Nome, preço e categoria são obrigatórios' });
+    }
+    
+    // Buscar produto atual para manter dados existentes
+    db.get('SELECT * FROM products WHERE id = ?', [id], async (err, currentProduct) => {
+        if (err) {
+            console.error('❌ Erro ao buscar produto atual:', err);
+            return res.status(500).json({ success: false, message: 'Erro interno' });
+        }
+        
+        if (!currentProduct) {
+            return res.status(404).json({ success: false, message: 'Produto não encontrado' });
+        }
+        
+        // Para atualizações de destaque, manter dados existentes
+        const updateName = name || currentProduct.name;
+        const updateDescription = description || currentProduct.description;
+        const updatePrice = price || currentProduct.price;
+        const updateCategoryId = category_id || currentProduct.category_id;
+        const updateIsAvailable = is_available !== undefined ? (is_available ? 1 : 0) : currentProduct.is_available;
+        const updateIsFeatured = is_featured !== undefined ? (is_featured ? 1 : 0) : currentProduct.is_featured;
+        const updateSortOrder = sort_order !== undefined ? sort_order : currentProduct.sort_order;
+        
+        let image_url = currentProduct.image_url || '';
+        
+        // Se foi enviada nova imagem, usar ela
+        if (file) {
+            image_url = `/uploads/${file.filename}`;
+        }
+        
+        const query = `UPDATE products SET name = ?, description = ?, price = ?, category_id = ?, 
+                       image_url = ?, is_available = ?, is_featured = ?, sort_order = ? WHERE id = ?`;
+        
+        db.run(query, [updateName, updateDescription, updatePrice, updateCategoryId, image_url, updateIsAvailable, updateIsFeatured, updateSortOrder, id], function(err) {
+            if (err) {
+                console.error('❌ Erro ao atualizar produto:', err);
+                return res.status(500).json({ success: false, message: 'Erro interno' });
+            }
+            
+            // Buscar produto atualizado
+            db.get('SELECT * FROM products WHERE id = ?', [id], (err, product) => {
+                if (err) {
+                    console.error('❌ Erro ao buscar produto atualizado:', err);
+                    return res.status(500).json({ success: false, message: 'Erro interno' });
+                }
+                
+                console.log('✅ Produto atualizado com sucesso:', product);
+                res.json({ success: true, data: product, message: 'Produto atualizado com sucesso' });
+            });
+        });
+    });
+}
 
 // DELETE - Deletar produto
 router.delete('/products/:id', authenticateAdmin, requirePermission('manage_products'), (req, res) => {
